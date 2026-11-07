@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Personal Launcher Mobile</string>
+    <string name="notification_service">Personal Launcher notifications</string>
+    <string name="panel_title">Personal Panel</string>
+</resources>
