@@ -45,10 +45,14 @@ public final class EdgeSwipeService extends AccessibilityService {
                 if(e.getActionMasked()==MotionEvent.ACTION_UP && !opened) v.performClick(); return true;
             }
         }); area.setOnClickListener(v->openPanel());
-        int width=getResources().getDisplayMetrics().widthPixels/2;
-        WindowManager.LayoutParams position=new WindowManager.LayoutParams(width,Ui.dp(this,30),WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+        int width=Math.min(Ui.dp(this,96),getResources().getDisplayMetrics().widthPixels/2);
+        WindowManager.LayoutParams position=new WindowManager.LayoutParams(width,Ui.dp(this,16),WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN|WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,PixelFormat.TRANSLUCENT);
         if(Build.VERSION.SDK_INT>=30) position.setFitInsetsTypes(0);
+        // Start below Android's reserved status-bar gesture band instead of fighting SystemUI.
+        int status=Ui.dp(this,24);
+        if(Build.VERSION.SDK_INT>=30) status=Math.max(status,windows.getCurrentWindowMetrics().getWindowInsets().getInsetsIgnoringVisibility(WindowInsets.Type.statusBars()).top);
+        position.y=status+Ui.dp(this,4); position.x=Ui.dp(this,12);
         position.gravity=Gravity.TOP|Gravity.RIGHT; position.layoutInDisplayCutoutMode=WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         try { windows.addView(area,position); handle=area; } catch(RuntimeException denied) { Ui.toast(this,"Edge swipe unavailable; use the Panel tile"); }
     }
