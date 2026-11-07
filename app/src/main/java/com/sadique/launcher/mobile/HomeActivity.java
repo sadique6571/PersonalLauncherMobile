@@ -95,17 +95,19 @@ public final class HomeActivity extends Activity {
         dock.setOnItemClickListener((p,v,pos,id)->launch(dockAdapter.getItem(pos))); dock.setOnItemLongClickListener((p,v,pos,id)-> { appMenu(dockAdapter.getItem(pos),"dock"); return true; });
         body.addView(dock,new LinearLayout.LayoutParams(-1,Ui.dp(this,114)));
         View.OnTouchListener swipe=new View.OnTouchListener() {
-            float x,y; boolean moved;
+            float x,y;
             public boolean onTouch(View v,android.view.MotionEvent e) {
-                if(e.getActionMasked()==MotionEvent.ACTION_DOWN) { x=e.getX(); y=e.getY(); moved=false; }
-                if(e.getActionMasked()==MotionEvent.ACTION_UP && !moved && Math.abs(e.getX()-x)<Ui.dp(HomeActivity.this,90)) {
+                if(e.getActionMasked()==MotionEvent.ACTION_DOWN) { x=e.getX(); y=e.getY(); }
+                if(e.getActionMasked()==MotionEvent.ACTION_UP && Math.abs(e.getX()-x)<Ui.dp(HomeActivity.this,90)) {
                     float delta=e.getY()-y;
                     if(delta<-Ui.dp(HomeActivity.this,90)) { showDrawer(true); return true; }
                     if(delta>Ui.dp(HomeActivity.this,90)) { if(drawer) showDrawer(false); else panel(); return true; }
                 }
+                if(e.getActionMasked()==MotionEvent.ACTION_UP) v.performClick();
                 return true;
             }
         };
+        clock.setOnClickListener(v->showDrawer(true)); date.setOnClickListener(v->panel());
         clock.setOnTouchListener(swipe); date.setOnTouchListener(swipe);
         updateTime(); refreshApps(); loadPhoto();
     }
@@ -190,17 +192,23 @@ public final class HomeActivity extends Activity {
     }
     private final class Wallpaper extends View {
         final Paint ink=new Paint(3); final RectF destination=new RectF();
+        Shader base,glow,shade;
         Wallpaper(Context c) { super(c); setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO); }
+        @Override protected void onSizeChanged(int w,int h,int oldw,int oldh) {
+            base=new LinearGradient(0,0,Math.max(1,w),Math.max(1,h),theme.top,theme.bottom,Shader.TileMode.CLAMP);
+            glow=new RadialGradient(w*.8f,h*.35f,Math.max(1,w),theme.accent&0x55ffffff,Color.TRANSPARENT,Shader.TileMode.CLAMP);
+            shade=new LinearGradient(0,0,0,Math.max(1,h*.55f),0x99000000,Color.TRANSPARENT,Shader.TileMode.CLAMP);
+        }
         @Override protected void onDraw(Canvas c) {
             int w=getWidth(),h=getHeight();
             if(photo!=null) {
                 float scale=Math.max(w/(float)photo.getWidth(),h/(float)photo.getHeight()); float x=(w-photo.getWidth()*scale)/2,y=(h-photo.getHeight()*scale)/2;
                 destination.set(x,y,x+photo.getWidth()*scale,y+photo.getHeight()*scale); c.drawBitmap(photo,null,destination,ink);
             } else {
-                ink.setShader(new LinearGradient(0,0,w,h,theme.top,theme.bottom,Shader.TileMode.CLAMP)); c.drawRect(0,0,w,h,ink);
-                ink.setShader(new RadialGradient(w*.8f,h*.35f,Math.max(1,w),theme.accent&0x55ffffff,Color.TRANSPARENT,Shader.TileMode.CLAMP)); c.drawRect(0,0,w,h,ink);
+                ink.setShader(base); c.drawRect(0,0,w,h,ink);
+                ink.setShader(glow); c.drawRect(0,0,w,h,ink);
             }
-            ink.setShader(new LinearGradient(0,0,0,Math.max(1,h*.55f),0x99000000,Color.TRANSPARENT,Shader.TileMode.CLAMP)); c.drawRect(0,0,w,h,ink); ink.setShader(null);
+            ink.setShader(shade); c.drawRect(0,0,w,h,ink); ink.setShader(null);
         }
     }
 }

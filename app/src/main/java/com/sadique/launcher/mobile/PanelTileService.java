@@ -13,7 +13,11 @@ public final class PanelTileService extends TileService {
         unlockAndRun(()-> {
             Intent panel=new Intent(this,NotificationPanelActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TOP);
             if(Build.VERSION.SDK_INT>=34) startActivityAndCollapse(PendingIntent.getActivity(this,0,panel,PendingIntent.FLAG_UPDATE_CURRENT|PendingIntent.FLAG_IMMUTABLE));
-            else startActivityAndCollapse(panel);
+            else openBeforeAndroid14(panel);
         });
     }
+    // The PendingIntent overload does not exist before API 34; the call site guards this fallback.
+    @android.annotation.SuppressLint("StartActivityAndCollapseDeprecated")
+    @SuppressWarnings("deprecation") private void openBeforeAndroid14(Intent panel) { startActivityAndCollapse(panel); }
+
 }
