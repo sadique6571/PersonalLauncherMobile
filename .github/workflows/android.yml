@@ -78,3 +78,60 @@ jobs:
             app/build/outputs/androidTest-results/
           if-no-files-found: ignore
           retention-days: 14
+  release:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [android, panel-routing]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: Check release signing configuration
+        id: signing
+        env:
+          MOBILE_KEYSTORE_BASE64: ${{ secrets.MOBILE_KEYSTORE_BASE64 }}
+          MOBILE_KEYSTORE_PASSWORD: ${{ secrets.MOBILE_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$MOBILE_KEYSTORE_BASE64" ] && [ -n "$MOBILE_KEYSTORE_PASSWORD" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Release key is not configured. See SIGNING.md; no production release will be published."
+          fi
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        if: steps.signing.outputs.ready == 'true'
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@9fc6c4e9069bf8d3d10b2204b1fb8f6ef7065407
+        if: steps.signing.outputs.ready == 'true'
+        with:
+          packages: platforms;android-36 build-tools;36.0.0
+      - uses: gradle/actions/setup-gradle@748248ddd2a24f49513d8f472f81c3a07d4d50e1
+        if: steps.signing.outputs.ready == 'true'
+      - name: Restore private signing file
+        if: steps.signing.outputs.ready == 'true'
+        env:
+          MOBILE_KEYSTORE_BASE64: ${{ secrets.MOBILE_KEYSTORE_BASE64 }}
+        run: |
+          umask 077
+          printf '%s' "$MOBILE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/mobile-release.p12"
+      - name: Build signed release
+        if: steps.signing.outputs.ready == 'true'
+        env:
+          MOBILE_KEYSTORE_PATH: ${{ runner.temp }}/mobile-release.p12
+          MOBILE_KEYSTORE_PASSWORD: ${{ secrets.MOBILE_KEYSTORE_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+          cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/PersonalLauncherMobile.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$RUNNER_TEMP/PersonalLauncherMobile.apk"
+      - name: Remove private signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/mobile-release.p12"
+      - name: Publish signed APK
+        if: steps.signing.outputs.ready == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "mobile-build-${GITHUB_RUN_NUMBER}" "$RUNNER_TEMP/PersonalLauncherMobile.apk" --target "$GITHUB_SHA" --title "Personal Launcher Mobile 7.0 - build ${GITHUB_RUN_NUMBER}" --notes "Signed mobile release. Requires the same release certificate for future updates. OriginOS device retesting is still required."

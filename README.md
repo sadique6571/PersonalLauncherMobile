@@ -33,7 +33,7 @@ Open this repository's root directory. Use JDK 17, SDK platform 36 and Gradle 8.
 
 Windows: use `gradlew.bat` with the same tasks. GitHub Actions uploads **PersonalLauncherMobile-dev-N** under the workflow's Artifacts section. The ZIP contains `app-debug.apk`, unit-test results and lint report. The repository is private, so artifact download requires GitHub sign-in.
 
-Development APKs use the runner's debug key and may have a different certificate on later builds. They are for first testing, not a production auto-update channel. Configure one persistent private release key before distributing upgradeable releases. Release assembly is checked but its unsigned APK is not offered as installable. No signing key is committed or generated into the source tree.
+Development APKs use the runner's debug key and may have a different certificate on later builds. They are for first testing, not a production auto-update channel. Configure one persistent private release key before distributing upgradeable releases; see [SIGNING.md](SIGNING.md). Once configured, successful main builds publish a signed APK in GitHub Releases. Release assembly is checked but its unsigned APK is not offered as installable. No signing key is committed or generated into the source tree.
 
 ## Device validation still required
 
@@ -41,7 +41,7 @@ Intended first test device reports Android 16, OriginOS 6, 1080×2400, gesture n
 
 ## Remaining mobile work
 
-This is the first installable foundation, not feature parity with the TV launcher or OriginOS. Widgets, folders, drag-and-drop, additional Home pages, Daily Bing/weather, production signing and GitHub auto-updates remain to be implemented. Phone-specific shapes and glass rendering will be refined after on-device feedback; several themes currently share the same card geometry. Global replacement of Android system UI is not promised.
+This is the first installable foundation, not feature parity with the TV launcher or OriginOS. Widgets, folders, drag-and-drop, additional Home pages, Daily Bing/weather, production key configuration and in-app GitHub auto-updates remain to be implemented. Phone-specific shapes and glass rendering will be refined after on-device feedback; several themes currently share the same card geometry. Global replacement of Android system UI is not promised.
 
 ## Panel return-path regression
 

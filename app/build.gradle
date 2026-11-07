@@ -10,8 +10,19 @@ android {
         versionName '7.0'
         testInstrumentationRunner 'com.sadique.launcher.mobile.PanelRoutingInstrumentation'
     }
+    signingConfigs {
+        mobileRelease {
+            if(System.getenv('MOBILE_KEYSTORE_PATH')) {
+                storeFile file(System.getenv('MOBILE_KEYSTORE_PATH'))
+                storeType 'PKCS12'
+                storePassword System.getenv('MOBILE_KEYSTORE_PASSWORD')
+                keyAlias 'personal-mobile'
+                keyPassword System.getenv('MOBILE_KEYSTORE_PASSWORD')
+            }
+        }
+    }
     buildTypes {
-        release { minifyEnabled true; shrinkResources true; proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro' }
+        release { signingConfig System.getenv('MOBILE_KEYSTORE_PATH') ? signingConfigs.mobileRelease : null; minifyEnabled true; shrinkResources true; proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro' }
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
