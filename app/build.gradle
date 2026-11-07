@@ -1,0 +1,17 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.sadique.launcher.mobile'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'com.sadique.launcher.mobile'
+        minSdk 28
+        targetSdk 36
+        versionCode 1
+        versionName '7.0'
+    }
+    buildTypes {
+        release { minifyEnabled true; shrinkResources true; proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro' }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+dependencies { testImplementation 'junit:junit:4.13.2' }
