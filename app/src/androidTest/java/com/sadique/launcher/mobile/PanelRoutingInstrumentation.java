@@ -62,9 +62,13 @@ public final class PanelRoutingInstrumentation extends Instrumentation {
             long until=SystemClock.uptimeMillis()+8000; while(!EdgeSwipeService.active()&&SystemClock.uptimeMillis()<until) SystemClock.sleep(100);
             if(!EdgeSwipeService.active()) throw new AssertionError("User-enabled edge service did not attach");
             ActivityMonitor edgeMonitor=addMonitor(NotificationPanelActivity.class.getName(),null,false);
-            swipe(metrics.widthPixels*.75f,Ui.dp(getTargetContext(),12),Ui.dp(getTargetContext(),130));
+            android.graphics.Rect[] touch={new android.graphics.Rect()};
+            runOnMainSync(()->touch[0]=EdgeSwipeService.activationBounds());
+            if(touch[0].isEmpty()) { SystemClock.sleep(400); runOnMainSync(()->touch[0]=EdgeSwipeService.activationBounds()); }
+            if(touch[0].isEmpty()) throw new AssertionError("Edge handle has no visible bounds");
+            screenshot("edge-handle"); swipe(touch[0].centerX(),touch[0].centerY(),Ui.dp(getTargetContext(),130));
             Activity edgePanel=edgeMonitor.waitForActivityWithTimeout(5000); removeMonitor(edgeMonitor);
-            if(edgePanel==null) throw new AssertionError("Global edge gesture did not open the panel");
+            if(edgePanel==null) throw new AssertionError("Global edge gesture did not open the panel: "+EdgeSwipeService.diagnostics());
             focus(edgePanel); runOnMainSync(()->edgePanel.findViewById(R.id.close_panel).performClick()); focus(underlay);
             runOnMainSync(EdgeSwipeService::stop); sendStatus(0,status(test,current));
             outcome.putString("stream","OK (4 routing and swipe tests)\n");
@@ -84,6 +88,7 @@ public final class PanelRoutingInstrumentation extends Instrumentation {
     }
     private void shell(String command) throws Exception { try(ParcelFileDescriptor pipe=automation.executeShellCommand(command); java.io.InputStream in=new ParcelFileDescriptor.AutoCloseInputStream(pipe)) { while(in.read()!=-1) { } } }
     private void screenshot(String name) throws Exception {
+        waitForIdleSync(); SystemClock.sleep(700); waitForIdleSync();
         android.graphics.Bitmap bitmap=automation.takeScreenshot(); if(bitmap==null) return;
         shell("mkdir -p /data/local/tmp/pl-routing");
         ParcelFileDescriptor[] pipes=automation.executeShellCommandRw("dd of=/data/local/tmp/pl-routing/"+name+".png");

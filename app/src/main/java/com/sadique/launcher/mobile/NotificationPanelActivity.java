@@ -64,7 +64,7 @@ public final class NotificationPanelActivity extends Activity {
         LinearLayout tools=Ui.row(this); state=Ui.text(this,theme,"Notifications",17); state.setTypeface(theme.font,android.graphics.Typeface.BOLD); tools.addView(state,new LinearLayout.LayoutParams(0,Ui.dp(this,48),1));
         tools.addView(Ui.icon(this,theme,"close","Clear dismissible notifications",theme.muted(),NotificationCollector::clearDismissible)); root.addView(tools);
         notifications=Ui.column(this); root.addView(notifications);
-        ListView list=new ListView(this); list.setDivider(null); list.setDividerHeight(Ui.dp(this,12));
+        ListView list=new ListView(this); list.setVerticalScrollBarEnabled(false); list.setDivider(null); list.setDividerHeight(Ui.dp(this,12));
         adapter=new BaseAdapter() {
             public int getCount() { return displayed.size(); }
             public Object getItem(int position) { return displayed.get(position); }
@@ -82,8 +82,8 @@ public final class NotificationPanelActivity extends Activity {
         if(Build.VERSION.SDK_INT>=33) registerReceiver(screen,filter,Context.RECEIVER_NOT_EXPORTED); else registerReceiver(screen,filter);
         if(Build.VERSION.SDK_INT>=30 && getWindow().getInsetsController()!=null) getWindow().getInsetsController().setSystemBarsAppearance(theme.light()?android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS:0,android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
     }
-    @Override protected void onStart() { super.onStart(); NotificationCollector.observe(changed); }
-    @Override protected void onResume() { super.onResume(); EdgeSwipeService.panel(true); if(brightness!=null) { brightness.setEnabled(Settings.System.canWrite(this)); brightness.setLevel(Settings.System.getInt(getContentResolver(),Settings.System.SCREEN_BRIGHTNESS,128)*100/255); } render(); if(access() && !NotificationCollector.ready()) NotificationCollector.reconnect(this); }
+    @Override protected void onStart() { super.onStart(); EdgeSwipeService.panel(true); NotificationCollector.observe(changed); }
+    @Override protected void onResume() { super.onResume(); if(brightness!=null) { brightness.setEnabled(Settings.System.canWrite(this)); brightness.setLevel(Settings.System.getInt(getContentResolver(),Settings.System.SCREEN_BRIGHTNESS,128)*100/255); } render(); if(access() && !NotificationCollector.ready()) NotificationCollector.reconnect(this); }
     @Override protected void onStop() { NotificationCollector.unobserve(changed); EdgeSwipeService.panel(false); super.onStop(); }
     @Override protected void onDestroy() { unregisterReceiver(screen); super.onDestroy(); }
     private void closePanel() { if(isTaskRoot()) finishAndRemoveTask(); else finish(); }

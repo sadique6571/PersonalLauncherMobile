@@ -81,7 +81,7 @@ public final class HomeActivity extends Activity {
         TextView brand=Ui.text(this,theme,"PL",19); brand.setTypeface(theme.font,Typeface.BOLD); brand.setTextColor(Color.WHITE); brand.setShadowLayer(4,0,1,Color.BLACK); bar.addView(brand,new LinearLayout.LayoutParams(0,Ui.dp(this,48),1)); brand.setGravity(Gravity.CENTER_VERTICAL);
         android.widget.ImageButton panelButton=Ui.icon(this,theme,"panel","Open control center",Color.WHITE,this::panel); panelButton.setId(R.id.open_panel); bar.addView(panelButton);
         bar.addView(Ui.icon(this,theme,"settings","Launcher settings",Color.WHITE,this::settings)); body.addView(bar);
-        clock=Ui.text(this,theme,"",82); clock.setSingleLine(true); clock.setAutoSizeTextTypeUniformWithConfiguration(44,82,1,android.util.TypedValue.COMPLEX_UNIT_SP); clock.setTypeface(theme.font,theme.id==2||theme.id==6?Typeface.NORMAL:Typeface.BOLD); clock.setTextColor(Color.WHITE); clock.setShadowLayer(Ui.dp(this,6),0,Ui.dp(this,2),0xdd000000); clock.setPadding(0,Ui.dp(this,26),0,0); body.addView(clock);
+        clock=Ui.text(this,theme,"",82); clock.setSingleLine(true); clock.setHorizontallyScrolling(false); clock.setAutoSizeTextTypeUniformWithConfiguration(44,82,1,android.util.TypedValue.COMPLEX_UNIT_SP); clock.setTypeface(theme.font,theme.id==2||theme.id==6?Typeface.NORMAL:Typeface.BOLD); clock.setTextColor(Color.WHITE); clock.setShadowLayer(Ui.dp(this,6),0,Ui.dp(this,2),0xdd000000); clock.setPadding(0,Ui.dp(this,26),0,0); body.addView(clock);
         date=Ui.text(this,theme,"",16); date.setTextColor(Color.WHITE); date.setShadowLayer(5,0,2,Color.BLACK); body.addView(date);
         LinearLayout tools=Ui.row(this); tools.setPadding(0,Ui.dp(this,20),0,Ui.dp(this,8));
         heading=Ui.text(this,theme,"Home",16); heading.setTextColor(Color.WHITE); heading.setShadowLayer(4,0,1,Color.BLACK); tools.addView(heading,new LinearLayout.LayoutParams(0,-2,1));
@@ -91,7 +91,7 @@ public final class HomeActivity extends Activity {
         search.setInputType(android.text.InputType.TYPE_CLASS_TEXT); search.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE); search.setVisibility(drawer?View.VISIBLE:View.GONE); body.addView(search,new LinearLayout.LayoutParams(-1,Ui.dp(this,50)));
         search.addTextChangedListener(new TextWatcher() { public void beforeTextChanged(CharSequence s,int start,int count,int after) {} public void onTextChanged(CharSequence s,int start,int before,int count) { refreshApps(); } public void afterTextChanged(Editable e) {} });
         homeAdapter=new AppCatalog.Adapter(this,theme,catalog,true); drawerAdapter=new AppCatalog.Adapter(this,theme,catalog); dockAdapter=new AppCatalog.Adapter(this,theme,catalog,false,false);
-        grid=new GridView(this); grid.setNumColumns(Math.max(3,Math.min(6,prefs.getInt(MobileTheme.key(theme.id,"columns"),4)))); grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH); grid.setVerticalSpacing(Ui.dp(this,6)); grid.setClipToPadding(false); grid.setBackground(drawer?theme.panel(getResources().getDisplayMetrics().density,true):null); grid.setAdapter(drawer?drawerAdapter:homeAdapter);
+        grid=new GridView(this); grid.setNumColumns(Math.max(3,Math.min(6,prefs.getInt(MobileTheme.key(theme.id,"columns"),4)))); grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH); grid.setVerticalSpacing(Ui.dp(this,6)); grid.setVerticalScrollBarEnabled(false); grid.setClipToPadding(false); grid.setBackground(drawer?theme.panel(getResources().getDisplayMetrics().density,true):null); grid.setAdapter(drawer?drawerAdapter:homeAdapter);
         grid.setOnItemClickListener((p,v,pos,id)->launch(((AppCatalog.Adapter)grid.getAdapter()).getItem(pos)));
         grid.setOnItemLongClickListener((p,v,pos,id)-> { appMenu(((AppCatalog.Adapter)grid.getAdapter()).getItem(pos),drawer?null:"home"); return true; });
         body.addView(grid,new LinearLayout.LayoutParams(-1,0,1));
@@ -117,7 +117,9 @@ public final class HomeActivity extends Activity {
         clock.setOnTouchListener(swipe); date.setOnTouchListener(swipe);
         updateTime(); showDrawer(drawer); refreshApps(); loadPhoto();
     }
-    private void updateTime() { if(clock!=null) { clock.setText(android.text.format.DateFormat.getTimeFormat(this).format(new Date())); date.setText(android.text.format.DateFormat.format("EEEE, d MMMM",new Date())); } }
+    private void updateTime() { if(clock!=null) { String value=android.text.format.DateFormat.getTimeFormat(this).format(new Date()); android.text.SpannableString styled=new android.text.SpannableString(value);
+        if(!android.text.format.DateFormat.is24HourFormat(this)) for(String part:new java.text.DateFormatSymbols().getAmPmStrings()) { int at=value.lastIndexOf(part); if(at>=0&&!part.isEmpty()) styled.setSpan(new android.text.style.RelativeSizeSpan(.35f),at,at+part.length(),android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE); }
+        clock.setText(styled); date.setText(android.text.format.DateFormat.format("EEEE, d MMMM",new Date())); } }
     private void showDrawer(boolean open) {
         drawer=open; if(search==null) return;
         search.setVisibility(open?View.VISIBLE:View.GONE); grid.setBackground(open?theme.panel(getResources().getDisplayMetrics().density,true):null); grid.setAdapter(open?drawerAdapter:homeAdapter); dockShell.setVisibility(open?View.GONE:View.VISIBLE);

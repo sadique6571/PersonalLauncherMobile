@@ -27,10 +27,10 @@ final class Ui {
         b.setLayoutParams(new LinearLayout.LayoutParams(dp(c,48),dp(c,48))); return b;
     }
     static View control(Context c,MobileTheme t,String symbol,String title,String subtitle,Runnable action) {
-        LinearLayout card=row(c); card.setPadding(dp(c,14),dp(c,12),dp(c,14),dp(c,12)); card.setBackground(t.panel(c.getResources().getDisplayMetrics().density,false));
-        ImageView icon=new ImageView(c); icon.setImageDrawable(new Symbols(symbol,t.focusInk())); icon.setPadding(dp(c,7),dp(c,7),dp(c,7),dp(c,7));
-        card.addView(icon,new LinearLayout.LayoutParams(dp(c,44),dp(c,44))); LinearLayout labels=column(c); labels.setPadding(dp(c,8),0,0,0);
-        TextView name=text(c,t,title,17); name.setTypeface(t.font,android.graphics.Typeface.BOLD); labels.addView(name); TextView note=text(c,t,subtitle,11); note.setTextColor(t.muted()); labels.addView(note); card.addView(labels,new LinearLayout.LayoutParams(0,-2,1));
+        LinearLayout card=column(c); card.setPadding(dp(c,14),dp(c,8),dp(c,14),dp(c,8)); card.setBackground(t.panel(c.getResources().getDisplayMetrics().density,false));
+        ImageView icon=new ImageView(c); icon.setImageDrawable(new Symbols(symbol,t.focusInk())); card.addView(icon,new LinearLayout.LayoutParams(dp(c,24),dp(c,24)));
+        TextView name=text(c,t,title,16); name.setTypeface(t.font,android.graphics.Typeface.BOLD); name.setSingleLine(true); name.setEllipsize(android.text.TextUtils.TruncateAt.END); card.addView(name);
+        TextView note=text(c,t,subtitle,10); note.setTextColor(t.muted()); note.setSingleLine(true); note.setEllipsize(android.text.TextUtils.TruncateAt.END); card.addView(note);
         card.setClickable(true); card.setFocusable(true); card.setContentDescription(title+", "+subtitle); card.setOnClickListener(v->action.run()); return card;
     }
     static Dialog sheet(Activity a,MobileTheme t,String title,LinearLayout body) {
