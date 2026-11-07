@@ -11,7 +11,7 @@ public final class PanelRoutingInstrumentation extends Instrumentation {
     @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); start(); }
     private Bundle status(String test,int current) {
         Bundle b=new Bundle(); b.putString("class",getClass().getName()); b.putString("test",test);
-        b.putInt("numtests",4); b.putInt("current",current); b.putString("id","InstrumentationTestRunner"); return b;
+        b.putInt("numtests",5); b.putInt("current",current); b.putString("id","InstrumentationTestRunner"); return b;
     }
     @Override public void onStart() {
         automation=getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES);
@@ -71,7 +71,14 @@ public final class PanelRoutingInstrumentation extends Instrumentation {
             if(edgePanel==null) throw new AssertionError("Global edge gesture did not open the panel: "+EdgeSwipeService.diagnostics());
             focus(edgePanel); runOnMainSync(()->edgePanel.findViewById(R.id.close_panel).performClick()); focus(underlay);
             runOnMainSync(EdgeSwipeService::stop); sendStatus(0,status(test,current));
-            outcome.putString("stream","OK (4 routing and swipe tests)\n");
+            test="legacyBackupParserKeepsOnlyPreferences"; current=5; sendStatus(1,status(test,current));
+            String xml="<map><int name=\"style\" value=\"6\"/><string name=\"home\">example/.Main</string><string name=\"MOBILE_KEYSTORE_PASSWORD\">ignored</string></map>";
+            java.util.Map<String,Object> restored=SettingsImport.read(new java.io.ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+            if(restored.size()!=2||!Integer.valueOf(6).equals(restored.get("style"))) throw new AssertionError("Backup whitelist failed");
+            boolean blocked=false;
+            try { SettingsImport.read(new java.io.ByteArrayInputStream("<!DOCTYPE map><map><int name=\"style\" value=\"0\"/></map>".getBytes(java.nio.charset.StandardCharsets.UTF_8))); } catch(Exception expected) { blocked=true; }
+            if(!blocked) throw new AssertionError("Backup accepted a document declaration");
+            sendStatus(0,status(test,current)); outcome.putString("stream","OK (5 routing, swipe and backup tests)\n");
         } catch(Throwable failure) {
             Bundle failed=status(test,current); failed.putString("stack",android.util.Log.getStackTraceString(failure)); sendStatus(-2,failed);
             outcome.putString("shortMsg",failure.toString()); resultCode=Activity.RESULT_CANCELED;

@@ -50,3 +50,7 @@ Tile launches use a temporary task with no Home affinity. Close removes only tha
 ## Mobile control-center styling
 
 Icon-only Home toolbar, icon dock, theme-owned glass bevels, compact notification action rows and full-height level capsules replace the initial text-button prototype. Where Android reports cross-window blur support, the panel blurs the app behind it; otherwise it uses a readable solid palette. Android remains responsible for the system shade and protected dialogs. The accessibility handle is an optional alternate entry gesture, not a replacement SystemUI implementation.
+
+## Restoring the initial test preferences
+
+After retaining an explicit XML backup from the debug test installation, use Launcher settings → Import saved settings (.xml). Only whitelisted Home/dock, wallpaper URI, selected style and per-theme appearance values are imported; permissions, notification data and signing material are excluded. The file is size-bounded and parsed before preferences are changed. Android-controlled permissions and persisted photo access must be granted separately after a signature-change reinstall.

@@ -160,6 +160,7 @@ public final class HomeActivity extends Activity {
         TextView edgeInfo=Ui.text(this,theme,"Optional: enable Personal Panel edge swipe in Accessibility. Pull down from the top-right handle over other apps. The left edge keeps Android’s own shade. Screen text is not read.",13); edgeInfo.setPadding(0,Ui.dp(this,10),0,Ui.dp(this,14)); options.addView(edgeInfo);
         options.addView(Ui.button(this,theme,"Notification access",()->open(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))));
         TextView note=Ui.text(this,theme,"Notification access reads notifications for your panel. Content stays in memory on this phone; no server or analytics. Android still owns its permission screens and system shade.",14); note.setPadding(0,Ui.dp(this,10),0,Ui.dp(this,10)); options.addView(note);
+        options.addView(Ui.button(this,theme,"Import saved settings (.xml)",()-> { sheet[0].dismiss(); startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE),44); }));
         options.addView(Ui.button(this,theme,"Choose photo wallpaper",()-> { sheet[0].dismiss(); startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE),42); }));
         options.addView(Ui.button(this,theme,"Use theme wallpaper",()-> { prefs.edit().remove("wallpaper").apply(); sheet[0].dismiss(); build(); }));
         TextView label=Ui.text(this,theme,"Visual style",18); label.setPadding(0,Ui.dp(this,18),0,Ui.dp(this,8)); options.addView(label);
@@ -184,6 +185,16 @@ public final class HomeActivity extends Activity {
     }
     @Override protected void onActivityResult(int request,int result,Intent data) {
         super.onActivityResult(request,result,data);
+        if(request==44 && result==RESULT_OK && data!=null && data.getData()!=null) {
+            Uri uri=data.getData(); Ui.toast(this,"Reading settings backup"); images.execute(()-> {
+                try(java.io.InputStream in=getContentResolver().openInputStream(uri)) {
+                    Map<String,Object> restored=SettingsImport.read(in);
+                    main.post(()-> { if(isDestroyed()) return; android.content.SharedPreferences.Editor edit=prefs.edit();
+                        for(Map.Entry<String,Object> entry:restored.entrySet()) { Object value=entry.getValue(); if(value instanceof String) edit.putString(entry.getKey(),(String)value); else if(value instanceof Integer) edit.putInt(entry.getKey(),(Integer)value); else if(value instanceof Boolean) edit.putBoolean(entry.getKey(),(Boolean)value); }
+                        edit.apply(); build(); Ui.toast(this,"Settings restored. Android permissions must be approved separately."); });
+                } catch(Exception invalid) { main.post(()-> { if(!isDestroyed()) Ui.toast(this,"Could not read this settings backup"); }); }
+            });
+        }
         if(request==42 && result==RESULT_OK && data!=null && data.getData()!=null) {
             Uri uri=data.getData(); try { getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION); prefs.edit().putString("wallpaper",uri.toString()).apply(); loadPhoto(); } catch(SecurityException denied) { Ui.toast(this,"Photo access unavailable"); }
         }

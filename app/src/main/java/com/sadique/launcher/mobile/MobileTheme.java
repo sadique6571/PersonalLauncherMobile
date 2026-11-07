@@ -18,7 +18,7 @@ final class MobileTheme {
         this.prefs=prefs; id=clamp(prefs.getInt("style",0)); top=TOP[id]; bottom=BOTTOM[id]; ink=INK[id];
         accent=prefs.getInt(key(id,"accent"),ACCENT[id]);
         intensity=Math.max(0,Math.min(100,prefs.getInt(key(id,"intensity"),75)));
-        radius=prefs.getInt(key(id,"round"),id==2||id==7?12:24);
+        radius=Math.max(4,Math.min(36,prefs.getInt(key(id,"round"),id==2||id==7?12:24)));
         int face=Math.max(0,Math.min(2,prefs.getInt(key(id,"font"),id==6?1:0)));
         font=Typeface.create(new String[]{"sans-serif","serif","monospace"}[face],Typeface.NORMAL);
     }
