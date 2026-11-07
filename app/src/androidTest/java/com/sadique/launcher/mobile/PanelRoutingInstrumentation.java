@@ -6,12 +6,14 @@ import android.os.*;
 
 /** Real Android task/window regression, using the framework runner without runtime dependencies. */
 public final class PanelRoutingInstrumentation extends Instrumentation {
+    private UiAutomation automation;
     @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); start(); }
     private Bundle status(String test,int current) {
         Bundle b=new Bundle(); b.putString("class",getClass().getName()); b.putString("test",test);
-        b.putInt("numtests",2); b.putInt("current",current); b.putString("id","InstrumentationTestRunner"); return b;
+        b.putInt("numtests",4); b.putInt("current",current); b.putString("id","InstrumentationTestRunner"); return b;
     }
     @Override public void onStart() {
+        automation=getUiAutomation(UiAutomation.FLAG_DONT_SUPPRESS_ACCESSIBILITY_SERVICES);
         Bundle outcome=new Bundle(); int resultCode=Activity.RESULT_OK;
         HomeActivity home=null; RoutingUnderlayActivity underlay=null;
         String test="tileCloseRestoresUnderlyingTask"; int current=1;
@@ -30,17 +32,38 @@ public final class PanelRoutingInstrumentation extends Instrumentation {
             test="homePanelClosePreservesHomeTask"; current=2; sendStatus(1,status(test,current));
             HomeActivity owner=home;
             runOnMainSync(()->owner.startActivity(new Intent(owner,HomeActivity.class)));
-            focus(home);
+            focus(home); screenshot("home");
             ActivityMonitor monitor=addMonitor(NotificationPanelActivity.class.getName(),null,false);
             runOnMainSync(()->owner.findViewById(R.id.open_panel).performClick());
             Activity homePanel=monitor.waitForActivityWithTimeout(5000); removeMonitor(monitor);
             if(homePanel==null) throw new AssertionError("Home panel did not open");
-            focus(homePanel);
+            focus(homePanel); screenshot("panel");
             if(homePanel.getTaskId()!=home.getTaskId()) throw new AssertionError("Home button panel left the Home task");
             runOnMainSync(()->homePanel.findViewById(R.id.close_panel).performClick());
             focus(home);
             sendStatus(0,status(test,current));
-            outcome.putString("stream","OK (2 task-routing tests)\n");
+            test="homeGridSwipeOpensPanel"; current=3; sendStatus(1,status(test,current));
+            ActivityMonitor swipeMonitor=addMonitor(NotificationPanelActivity.class.getName(),null,false);
+            android.util.DisplayMetrics metrics=getTargetContext().getResources().getDisplayMetrics();
+            swipe(metrics.widthPixels*.35f,metrics.heightPixels*.48f,Ui.dp(getTargetContext(),150));
+            Activity swipePanel=swipeMonitor.waitForActivityWithTimeout(5000); removeMonitor(swipeMonitor);
+            if(swipePanel==null) throw new AssertionError("Full Home swipe did not open the panel");
+            focus(swipePanel); runOnMainSync(()->swipePanel.findViewById(R.id.close_panel).performClick()); focus(home); sendStatus(0,status(test,current));
+
+            test="edgeSwipeOverAppRestoresUnderlyingTask"; current=4; sendStatus(1,status(test,current));
+            runOnMainSync(()->owner.startActivity(new Intent(owner,RoutingUnderlayActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)));
+            focus(underlay);
+            shell("settings put secure enabled_accessibility_services com.sadique.launcher.mobile/.EdgeSwipeService");
+            shell("settings put secure accessibility_enabled 1");
+            long until=SystemClock.uptimeMillis()+8000; while(!EdgeSwipeService.active()&&SystemClock.uptimeMillis()<until) SystemClock.sleep(100);
+            if(!EdgeSwipeService.active()) throw new AssertionError("User-enabled edge service did not attach");
+            ActivityMonitor edgeMonitor=addMonitor(NotificationPanelActivity.class.getName(),null,false);
+            swipe(metrics.widthPixels*.75f,Ui.dp(getTargetContext(),12),Ui.dp(getTargetContext(),130));
+            Activity edgePanel=edgeMonitor.waitForActivityWithTimeout(5000); removeMonitor(edgeMonitor);
+            if(edgePanel==null) throw new AssertionError("Global edge gesture did not open the panel");
+            focus(edgePanel); runOnMainSync(()->edgePanel.findViewById(R.id.close_panel).performClick()); focus(underlay);
+            runOnMainSync(EdgeSwipeService::stop); sendStatus(0,status(test,current));
+            outcome.putString("stream","OK (4 routing and swipe tests)\n");
         } catch(Throwable failure) {
             Bundle failed=status(test,current); failed.putString("stack",android.util.Log.getStackTraceString(failure)); sendStatus(-2,failed);
             outcome.putString("shortMsg",failure.toString()); resultCode=Activity.RESULT_CANCELED;
@@ -48,6 +71,18 @@ public final class PanelRoutingInstrumentation extends Instrumentation {
             Activity h=home,u=underlay; runOnMainSync(()-> { if(u!=null) u.finishAndRemoveTask(); if(h!=null) h.finishAndRemoveTask(); });
         }
         finish(resultCode,outcome);
+    }
+    private void swipe(float x,float y,float distance) {
+        long down=SystemClock.uptimeMillis();
+        android.view.MotionEvent event=android.view.MotionEvent.obtain(down,down,android.view.MotionEvent.ACTION_DOWN,x,y,0); automation.injectInputEvent(event,true); event.recycle();
+        for(int i=1;i<=8;i++) { SystemClock.sleep(30); event=android.view.MotionEvent.obtain(down,SystemClock.uptimeMillis(),android.view.MotionEvent.ACTION_MOVE,x,y+distance*i/8,0); automation.injectInputEvent(event,true); event.recycle(); }
+        event=android.view.MotionEvent.obtain(down,SystemClock.uptimeMillis(),android.view.MotionEvent.ACTION_UP,x,y+distance,0); automation.injectInputEvent(event,true); event.recycle();
+    }
+    private void shell(String command) throws Exception { try(ParcelFileDescriptor pipe=automation.executeShellCommand(command); java.io.InputStream in=new ParcelFileDescriptor.AutoCloseInputStream(pipe)) { while(in.read()!=-1) { } } }
+    private void screenshot(String name) throws Exception {
+        android.graphics.Bitmap bitmap=automation.takeScreenshot(); if(bitmap==null) return;
+        java.io.File dir=new java.io.File(getTargetContext().getExternalFilesDir(null),"routing-shots"); dir.mkdirs();
+        try(java.io.FileOutputStream out=new java.io.FileOutputStream(new java.io.File(dir,name+".png"))) { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,out); }
     }
     private void focus(Activity activity) {
         long deadline=SystemClock.uptimeMillis()+7000;

@@ -9,9 +9,9 @@ Independent Android phone launcher with the Personal Launcher theme family. The 
 - TV Glass, Classic, Dune Loom, Pearl Current, Cobalt Rail, Sage Fold, Pine Mist and Amber Night.
 - Per-theme intensity, transparency, font, accent, columns and icon corners; theme reset affects only that appearance.
 - Local photo wallpaper via Android's document picker, decoded off the UI thread with a 2048px bound. Shared wallpaper and app ordering survive theme changes.
-- White clock/date with shadow. Swipe up on the clock/date to open apps, swipe down to open the panel; explicit buttons are also available.
+- White clock/date with shadow. Swipe up on Home to open apps, swipe down to open the panel; child scrolling is preserved when the grid can scroll. Explicit icon buttons are also available.
 - Themed notification panel with real notifications, open/dismiss/clear-dismissible, app-provided actions and free-text replies where supported.
-- Media volume control. Wi-Fi, Bluetooth and display buttons open the appropriate Android settings screens.
+- Full-height brightness and volume capsules. System brightness requires optional user-approved Modify system settings access; dragging brightness selects manual brightness. Wi-Fi, Bluetooth and display buttons open the appropriate Android settings screens.
 - Optional **Personal Panel** Quick Settings tile opens the panel while another app is active, without routing through Home.
 - Supported Android default-Home role request. Android 16 system/keyboard/cutout insets keep controls clear of gestures.
 
@@ -21,7 +21,7 @@ Open Launcher settings → Set as default Home, and approve Android's chooser. N
 
 To use the panel outside Home, edit Android's Quick Settings tiles and add **Personal Panel**. This tile opens our Activity; it does **not** replace the system notification shade or claim the top-edge gesture in other apps. Notification content is not shown while the phone is locked. Android may redact sensitive content, restrict actions or disconnect the listener. Work-profile/device policy restrictions remain in force.
 
-No root, ADB helper or accessibility permission is required. The app does not disable Vivo Home, SystemUI, keyguard or permission controllers. Protected permission dialogs, biometric/PIN UI, Recents and the native shade remain Android/OriginOS features.
+No root or ADB helper is required. Core Home, tile and notifications do not require accessibility access. Optional **Personal Panel edge swipe** uses a user-enabled AccessibilityService to draw a top-right touch handle over apps; it does not retrieve window content, inspect text, filter keys or trigger actions without a handle gesture. The left edge retains access to Android’s shade. Disable the service in launcher settings or Android Accessibility settings. OriginOS behavior must be tested on the phone. The app does not disable Vivo Home, SystemUI, keyguard or permission controllers. Protected permission dialogs, biometric/PIN UI, Recents and the native shade remain Android/OriginOS features.
 
 ## Build in Android Studio
 
@@ -46,3 +46,7 @@ This is the first installable foundation, not feature parity with the TV launche
 ## Panel return-path regression
 
 Tile launches use a temporary task with no Home affinity. Close removes only that task and reveals the app underneath. Opening the panel from Home stays inside Home and Close returns to Home. Android 16 emulator instrumentation checks both paths against real task IDs and window focus; the debug-only underlay activity is excluded from release APKs. Physical OriginOS retesting is still required.
+
+## Mobile control-center styling
+
+Icon-only Home toolbar, icon dock, theme-owned glass bevels, compact notification action rows and full-height level capsules replace the initial text-button prototype. Where Android reports cross-window blur support, the panel blurs the app behind it; otherwise it uses a readable solid palette. Android remains responsible for the system shade and protected dialogs. The accessibility handle is an optional alternate entry gesture, not a replacement SystemUI implementation.

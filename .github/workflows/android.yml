@@ -66,12 +66,14 @@ jobs:
             adb shell input keyevent 82
             chmod +x gradlew
             ./gradlew --no-daemon connectedDebugAndroidTest
+            adb pull /sdcard/Android/data/com.sadique.launcher.mobile/files/routing-shots app/build/routing-shots
       - name: Upload panel routing results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: panel-routing-results-${{ github.run_number }}
           path: |
+            app/build/routing-shots/
             app/build/reports/androidTests/
             app/build/outputs/androidTest-results/
           if-no-files-found: ignore

@@ -56,10 +56,11 @@ final class AppCatalog implements AutoCloseable {
     @Override public void close() { closed=true; generation++; onIcon=null; worker.shutdownNow(); main.removeCallbacksAndMessages(null); }
     static final class Adapter extends BaseAdapter {
         final AppCatalog catalog; final MobileTheme theme; final Context context;
-        final boolean wallpaperLabels;
+        final boolean wallpaperLabels,labels;
         List<Entry> entries=Collections.emptyList();
         Adapter(Context c,MobileTheme t,AppCatalog catalog) { this(c,t,catalog,false); }
-        Adapter(Context c,MobileTheme t,AppCatalog catalog,boolean wallpaperLabels) { context=c; theme=t; this.catalog=catalog; this.wallpaperLabels=wallpaperLabels; }
+        Adapter(Context c,MobileTheme t,AppCatalog catalog,boolean wallpaperLabels) { this(c,t,catalog,wallpaperLabels,true); }
+        Adapter(Context c,MobileTheme t,AppCatalog catalog,boolean wallpaperLabels,boolean labels) { context=c; theme=t; this.catalog=catalog; this.wallpaperLabels=wallpaperLabels; this.labels=labels; }
         void set(List<Entry> entries) { this.entries=entries; notifyDataSetChanged(); }
         public int getCount() { return entries.size(); }
         public Entry getItem(int position) { return entries.get(position); }
@@ -69,10 +70,10 @@ final class AppCatalog implements AutoCloseable {
             if(recycled instanceof LinearLayout) tile=(LinearLayout)recycled;
             else {
                 tile=Ui.column(context); tile.setGravity(Gravity.CENTER); tile.setPadding(Ui.dp(context,4),Ui.dp(context,10),Ui.dp(context,4),Ui.dp(context,6));
-                ImageView icon=new ImageView(context); icon.setScaleType(ImageView.ScaleType.FIT_CENTER); icon.setClipToOutline(true); icon.setBackground(theme.panel(context.getResources().getDisplayMetrics().density,false));
-                icon.setPadding(Ui.dp(context,7),Ui.dp(context,7),Ui.dp(context,7),Ui.dp(context,7)); tile.addView(icon,new LinearLayout.LayoutParams(Ui.dp(context,58),Ui.dp(context,58)));
+                ImageView icon=new ImageView(context); icon.setScaleType(ImageView.ScaleType.FIT_CENTER); icon.setClipToOutline(true); android.graphics.drawable.GradientDrawable plate=new android.graphics.drawable.GradientDrawable(); plate.setColor(0x14ffffff); plate.setCornerRadius(Ui.dp(context,theme.radius)); icon.setBackground(plate);
+                icon.setPadding(Ui.dp(context,2),Ui.dp(context,2),Ui.dp(context,2),Ui.dp(context,2)); tile.addView(icon,new LinearLayout.LayoutParams(Ui.dp(context,58),Ui.dp(context,58)));
                 TextView label=Ui.text(context,theme,"",12); if(wallpaperLabels) { label.setTextColor(android.graphics.Color.WHITE); label.setShadowLayer(Ui.dp(context,3),0,Ui.dp(context,1),android.graphics.Color.BLACK); } label.setGravity(Gravity.CENTER); label.setMaxLines(2); label.setEllipsize(android.text.TextUtils.TruncateAt.END); label.setMinHeight(Ui.dp(context,36));
-                tile.addView(label,new LinearLayout.LayoutParams(-1,Ui.dp(context,36)));
+                label.setVisibility(labels?View.VISIBLE:View.GONE); tile.addView(label,new LinearLayout.LayoutParams(-1,Ui.dp(context,36)));
             }
             Entry app=getItem(position); ((TextView)tile.getChildAt(1)).setText(app.label); tile.setContentDescription(app.label);
             catalog.icon(app,(ImageView)tile.getChildAt(0)); return tile;

@@ -17,9 +17,21 @@ final class Ui {
     static LinearLayout column(Context c) { LinearLayout v=new LinearLayout(c); v.setOrientation(LinearLayout.VERTICAL); return v; }
     static LinearLayout row(Context c) { LinearLayout v=new LinearLayout(c); v.setGravity(Gravity.CENTER_VERTICAL); return v; }
     static TextView button(Context c,MobileTheme t,String name,Runnable action) {
-        TextView b=text(c,t,name,14); b.setGravity(Gravity.CENTER); b.setMinHeight(dp(c,48)); b.setPadding(dp(c,14),dp(c,8),dp(c,14),dp(c,8));
+        TextView b=text(c,t,name,14); b.setGravity(Gravity.CENTER); b.setMinHeight(dp(c,52)); b.setPadding(dp(c,14),dp(c,8),dp(c,14),dp(c,8));
         b.setBackground(t.panel(c.getResources().getDisplayMetrics().density,false)); b.setFocusable(true); b.setClickable(true);
         b.setContentDescription(name); b.setOnClickListener(v->action.run()); return b;
+    }
+    static ImageButton icon(Context c,MobileTheme t,String symbol,String label,int color,Runnable action) {
+        ImageButton b=new ImageButton(c); b.setImageDrawable(new Symbols(symbol,color)); b.setContentDescription(label); b.setTooltipText(label);
+        b.setPadding(dp(c,12),dp(c,12),dp(c,12),dp(c,12)); b.setScaleType(ImageView.ScaleType.FIT_CENTER); b.setBackgroundColor(Color.TRANSPARENT); b.setOnClickListener(v->action.run());
+        b.setLayoutParams(new LinearLayout.LayoutParams(dp(c,48),dp(c,48))); return b;
+    }
+    static View control(Context c,MobileTheme t,String symbol,String title,String subtitle,Runnable action) {
+        LinearLayout card=row(c); card.setPadding(dp(c,14),dp(c,12),dp(c,14),dp(c,12)); card.setBackground(t.panel(c.getResources().getDisplayMetrics().density,false));
+        ImageView icon=new ImageView(c); icon.setImageDrawable(new Symbols(symbol,t.focusInk())); icon.setPadding(dp(c,7),dp(c,7),dp(c,7),dp(c,7));
+        card.addView(icon,new LinearLayout.LayoutParams(dp(c,44),dp(c,44))); LinearLayout labels=column(c); labels.setPadding(dp(c,8),0,0,0);
+        TextView name=text(c,t,title,17); name.setTypeface(t.font,android.graphics.Typeface.BOLD); labels.addView(name); TextView note=text(c,t,subtitle,11); note.setTextColor(t.muted()); labels.addView(note); card.addView(labels,new LinearLayout.LayoutParams(0,-2,1));
+        card.setClickable(true); card.setFocusable(true); card.setContentDescription(title+", "+subtitle); card.setOnClickListener(v->action.run()); return card;
     }
     static Dialog sheet(Activity a,MobileTheme t,String title,LinearLayout body) {
         Dialog d=new Dialog(a); LinearLayout outer=column(a); int p=dp(a,20); outer.setPadding(p,p,p,p);
