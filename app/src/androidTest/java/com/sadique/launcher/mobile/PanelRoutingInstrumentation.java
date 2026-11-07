@@ -5,6 +5,7 @@ import android.content.Intent;
 import android.os.*;
 
 /** Real Android task/window regression, using the framework runner without runtime dependencies. */
+@android.annotation.TargetApi(36)
 public final class PanelRoutingInstrumentation extends Instrumentation {
     private UiAutomation automation;
     @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); start(); }
@@ -47,7 +48,10 @@ public final class PanelRoutingInstrumentation extends Instrumentation {
             android.util.DisplayMetrics metrics=getTargetContext().getResources().getDisplayMetrics();
             swipe(metrics.widthPixels*.35f,metrics.heightPixels*.48f,Ui.dp(getTargetContext(),150));
             Activity swipePanel=swipeMonitor.waitForActivityWithTimeout(5000); removeMonitor(swipeMonitor);
-            if(swipePanel==null) throw new AssertionError("Full Home swipe did not open the panel");
+            if(swipePanel==null) {
+                String[] detail={"no root"}; runOnMainSync(()-> { android.widget.FrameLayout content=owner.findViewById(android.R.id.content); android.view.View root=content.getChildAt(0); if(root instanceof GestureFrame) detail[0]=((GestureFrame)root).diagnostics(); });
+                throw new AssertionError("Full Home swipe did not open the panel: "+detail[0]);
+            }
             focus(swipePanel); runOnMainSync(()->swipePanel.findViewById(R.id.close_panel).performClick()); focus(home); sendStatus(0,status(test,current));
 
             test="edgeSwipeOverAppRestoresUnderlyingTask"; current=4; sendStatus(1,status(test,current));
@@ -81,8 +85,10 @@ public final class PanelRoutingInstrumentation extends Instrumentation {
     private void shell(String command) throws Exception { try(ParcelFileDescriptor pipe=automation.executeShellCommand(command); java.io.InputStream in=new ParcelFileDescriptor.AutoCloseInputStream(pipe)) { while(in.read()!=-1) { } } }
     private void screenshot(String name) throws Exception {
         android.graphics.Bitmap bitmap=automation.takeScreenshot(); if(bitmap==null) return;
-        java.io.File dir=new java.io.File(getTargetContext().getExternalFilesDir(null),"routing-shots"); dir.mkdirs();
-        try(java.io.FileOutputStream out=new java.io.FileOutputStream(new java.io.File(dir,name+".png"))) { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,out); }
+        shell("mkdir -p /data/local/tmp/pl-routing");
+        ParcelFileDescriptor[] pipes=automation.executeShellCommandRw("dd of=/data/local/tmp/pl-routing/"+name+".png");
+        try(java.io.OutputStream out=new ParcelFileDescriptor.AutoCloseOutputStream(pipes[1])) { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG,100,out); }
+        try(java.io.InputStream in=new ParcelFileDescriptor.AutoCloseInputStream(pipes[0])) { while(in.read()!=-1) { } }
     }
     private void focus(Activity activity) {
         long deadline=SystemClock.uptimeMillis()+7000;

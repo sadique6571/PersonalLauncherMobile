@@ -65,8 +65,8 @@ jobs:
           script: |
             adb shell input keyevent 82
             chmod +x gradlew
-            ./gradlew --no-daemon connectedDebugAndroidTest || { adb pull /sdcard/Android/data/com.sadique.launcher.mobile/files/routing-shots app/build/routing-shots || true; exit 1; }
-            adb pull /sdcard/Android/data/com.sadique.launcher.mobile/files/routing-shots app/build/routing-shots
+            ./gradlew --no-daemon connectedDebugAndroidTest || { adb pull /data/local/tmp/pl-routing app/build/routing-shots || true; exit 1; }
+            adb pull /data/local/tmp/pl-routing app/build/routing-shots
       - name: Upload panel routing results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
