@@ -27,7 +27,7 @@ public final class NotificationPanelActivity extends Activity {
         super.onCreate(saved); theme=new MobileTheme(getSharedPreferences("mobile_home",MODE_PRIVATE));
         LinearLayout root=Ui.column(this);
         boolean blur=Build.VERSION.SDK_INT>=31 && getSystemService(WindowManager.class).isCrossWindowBlurEnabled();
-        if(blur) getWindow().setBackgroundBlurRadius(Ui.dp(this,36));
+        if(Build.VERSION.SDK_INT>=31 && blur) getWindow().setBackgroundBlurRadius(Ui.dp(this,36));
         root.setBackground(theme.panel(getResources().getDisplayMetrics().density,!blur)); setContentView(root); Ui.insets(this,root,20);
         LinearLayout header=Ui.row(this); LinearLayout titles=Ui.column(this);
         TextView time=Ui.text(this,theme,android.text.format.DateFormat.getTimeFormat(this).format(new Date()),42); time.setTypeface(theme.font,android.graphics.Typeface.BOLD); titles.addView(time);
