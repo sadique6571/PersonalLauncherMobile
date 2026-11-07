@@ -10,8 +10,8 @@ import android.view.accessibility.AccessibilityEvent;
 
 /** User-enabled edge handle only. No window-content retrieval, key filtering or automatic UI actions. */
 public final class EdgeSwipeService extends AccessibilityService {
-    private static EdgeSwipeService connected;
-    private View handle; private WindowManager windows; private boolean panelVisible;
+    private static volatile EdgeSwipeService connected;
+    private volatile View handle; private WindowManager windows; private boolean panelVisible;
     private final android.content.SharedPreferences.OnSharedPreferenceChangeListener changed=(p,k)-> { if("style".equals(k)||(k!=null&&k.startsWith("appearance."))) remove(); refresh(); };
     static boolean active() { return connected!=null && connected.handle!=null; }
     static void panel(boolean shown) { if(connected!=null) { connected.panelVisible=shown; connected.refresh(); } }

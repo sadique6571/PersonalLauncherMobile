@@ -2,4 +2,4 @@
     <item name="android:fontFamily">sans</item><item name="android:windowLightStatusBar">false</item>
     <item name="android:colorAccent">#8FD0B2</item><item name="android:windowActionModeOverlay">true</item>
     <item name="android:windowBackground">#101C26</item><item name="android:windowSoftInputMode">adjustResize</item>
-</style><style name="PanelTheme" parent="AppTheme"><item name="android:windowIsTranslucent">true</item><item name="android:windowBackground">@android:color/transparent</item><item name="android:backgroundDimEnabled">true</item><item name="android:windowDimAmount">0.15</item></style></resources>
+</style><style name="PanelTheme" parent="AppTheme"><item name="android:windowIsTranslucent">true</item><item name="android:windowBackground">@android:color/transparent</item><item name="android:backgroundDimEnabled">true</item><item name="android:backgroundDimAmount">0.15</item></style></resources>
