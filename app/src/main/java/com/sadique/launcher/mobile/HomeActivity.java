@@ -49,6 +49,8 @@ public final class HomeActivity extends Activity {
     @Override protected void onResume() { super.onResume(); resumed=true; main.removeCallbacks(tick); tick.run(); if(!photoUri.equals(prefs.getString("wallpaper",""))) loadPhoto(); }
     @Override protected void onPause() { resumed=false; main.removeCallbacks(tick); super.onPause(); }
     @Override protected void onDestroy() { unregisterReceiver(packages); main.removeCallbacksAndMessages(null); catalog.close(); images.shutdownNow(); super.onDestroy(); }
+    // Only Android 9–12 use this fallback. Android 13+ uses the registered platform dispatcher above.
+    @android.annotation.SuppressLint("GestureBackNavigation")
     @SuppressWarnings("deprecation") @Override public void onBackPressed() { showDrawer(false); }
 
     private void scan() {
