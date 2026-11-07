@@ -18,7 +18,7 @@ final class MobileTheme {
         this.prefs=prefs; id=clamp(prefs.getInt("style",0)); top=TOP[id]; bottom=BOTTOM[id]; ink=INK[id];
         accent=prefs.getInt(key(id,"accent"),ACCENT[id]);
         intensity=Math.max(0,Math.min(100,prefs.getInt(key(id,"intensity"),75)));
-        radius=prefs.getInt(key(id,"round"),id==2||id==7?12:24);
+        radius=Math.max(4,Math.min(36,prefs.getInt(key(id,"round"),id==2||id==7?12:24)));
         int face=Math.max(0,Math.min(2,prefs.getInt(key(id,"font"),id==6?1:0)));
         font=Typeface.create(new String[]{"sans-serif","serif","monospace"}[face],Typeface.NORMAL);
     }
@@ -29,8 +29,8 @@ final class MobileTheme {
     int focusInk() { return contrast(accent,top)>=3?accent:ink; }
     int accentInk() { return contrast(0xff11191c,accent)>=contrast(0xffffffff,accent)?0xff11191c:0xffffffff; }
     GradientDrawable panel(float density,boolean solid) {
-        int alpha=solid||!prefs.getBoolean(key(id,"transparent"),true)?255:Math.round(210+intensity*.4f);
-        GradientDrawable d=new GradientDrawable(GradientDrawable.Orientation.TL_BR,new int[]{(alpha<<24)|(top&0xffffff),(alpha<<24)|(bottom&0xffffff)});
+        int alpha=solid||!prefs.getBoolean(key(id,"transparent"),true)?255:Math.round((light()?218:170)+intensity*(light()?.32f:.65f));
+        GradientDrawable d=new GlassPanel(density); d.setOrientation(GradientDrawable.Orientation.TL_BR); d.setColors(new int[]{(alpha<<24)|(top&0xffffff),(alpha<<24)|(bottom&0xffffff)});
         d.setCornerRadius(radius*density); d.setStroke(Math.max(1,Math.round(density)),mix(top,ink,.25f)); return d;
     }
     static int mix(int a,int b,float t) {

@@ -2,4 +2,6 @@
     <string name="app_name">Personal Launcher Mobile</string>
     <string name="notification_service">Personal Launcher notifications</string>
     <string name="panel_title">Personal Panel</string>
+    <string name="edge_swipe_name">Personal Panel edge swipe</string>
+    <string name="edge_swipe_description">Optional top-right handle to open your themed panel over other apps. Does not read screen text or filter keys. Android controls enabling this service.</string>
 </resources>

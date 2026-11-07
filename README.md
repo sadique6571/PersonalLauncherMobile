@@ -9,9 +9,9 @@ Independent Android phone launcher with the Personal Launcher theme family. The 
 - TV Glass, Classic, Dune Loom, Pearl Current, Cobalt Rail, Sage Fold, Pine Mist and Amber Night.
 - Per-theme intensity, transparency, font, accent, columns and icon corners; theme reset affects only that appearance.
 - Local photo wallpaper via Android's document picker, decoded off the UI thread with a 2048px bound. Shared wallpaper and app ordering survive theme changes.
-- White clock/date with shadow. Swipe up on the clock/date to open apps, swipe down to open the panel; explicit buttons are also available.
+- White clock/date with shadow. Swipe up on Home to open apps, swipe down to open the panel; child scrolling is preserved when the grid can scroll. Explicit icon buttons are also available.
 - Themed notification panel with real notifications, open/dismiss/clear-dismissible, app-provided actions and free-text replies where supported.
-- Media volume control. Wi-Fi, Bluetooth and display buttons open the appropriate Android settings screens.
+- Full-height brightness and volume capsules. System brightness requires optional user-approved Modify system settings access; dragging brightness selects manual brightness. Wi-Fi, Bluetooth and display buttons open the appropriate Android settings screens.
 - Optional **Personal Panel** Quick Settings tile opens the panel while another app is active, without routing through Home.
 - Supported Android default-Home role request. Android 16 system/keyboard/cutout insets keep controls clear of gestures.
 
@@ -21,11 +21,11 @@ Open Launcher settings → Set as default Home, and approve Android's chooser. N
 
 To use the panel outside Home, edit Android's Quick Settings tiles and add **Personal Panel**. This tile opens our Activity; it does **not** replace the system notification shade or claim the top-edge gesture in other apps. Notification content is not shown while the phone is locked. Android may redact sensitive content, restrict actions or disconnect the listener. Work-profile/device policy restrictions remain in force.
 
-No root, ADB helper or accessibility permission is required. The app does not disable Vivo Home, SystemUI, keyguard or permission controllers. Protected permission dialogs, biometric/PIN UI, Recents and the native shade remain Android/OriginOS features.
+No root or ADB helper is required. Core Home, tile and notifications do not require accessibility access. Optional **Personal Panel edge swipe** uses a user-enabled AccessibilityService to draw a small touch handle just below the top-right status bar over apps; it does not retrieve window content, inspect text, filter keys or trigger actions without a handle gesture. Android’s reserved top-edge gesture retains access to its native shade; the visible handle is an alternate entry gesture. Disable the service in launcher settings or Android Accessibility settings. OriginOS behavior must be tested on the phone. The app does not disable Vivo Home, SystemUI, keyguard or permission controllers. Protected permission dialogs, biometric/PIN UI, Recents and the native shade remain Android/OriginOS features.
 
 ## Build in Android Studio
 
-Open this repository's root directory. Use JDK 17, SDK platform 36 and Gradle 8.13 (AGP 8.13.2). Minimum Android version is 9 / API 28; target SDK is 36. Package: `com.sadique.launcher.mobile`, separate from the TV package. Display version stays **7.0**; internal versionCode starts at **1** for this independent app.
+Open this repository's root directory. Use JDK 17, SDK platform 36 and Gradle 8.13 (AGP 8.13.2). Minimum Android version is 9 / API 28; target SDK is 36. Package: `com.sadique.launcher.mobile`, separate from the TV package. Display version stays **7.0**; internal versionCode is **2** for this independent app.
 
 ```sh
 ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
@@ -33,7 +33,7 @@ Open this repository's root directory. Use JDK 17, SDK platform 36 and Gradle 8.
 
 Windows: use `gradlew.bat` with the same tasks. GitHub Actions uploads **PersonalLauncherMobile-dev-N** under the workflow's Artifacts section. The ZIP contains `app-debug.apk`, unit-test results and lint report. The repository is private, so artifact download requires GitHub sign-in.
 
-Development APKs use the runner's debug key and may have a different certificate on later builds. They are for first testing, not a production auto-update channel. Configure one persistent private release key before distributing upgradeable releases. Release assembly is checked but its unsigned APK is not offered as installable. No signing key is committed or generated into the source tree.
+Development APKs use the runner's debug key and may have a different certificate on later builds. They are for first testing, not a production auto-update channel. Configure one persistent private release key before distributing upgradeable releases; see [SIGNING.md](SIGNING.md). Once configured, successful main builds publish a signed APK in GitHub Releases. Release assembly is checked but its unsigned APK is not offered as installable. No signing key is committed or generated into the source tree.
 
 ## Device validation still required
 
@@ -41,4 +41,16 @@ Intended first test device reports Android 16, OriginOS 6, 1080×2400, gesture n
 
 ## Remaining mobile work
 
-This is the first installable foundation, not feature parity with the TV launcher or OriginOS. Widgets, folders, drag-and-drop, additional Home pages, Daily Bing/weather, production signing and GitHub auto-updates remain to be implemented. Phone-specific shapes and glass rendering will be refined after on-device feedback; several themes currently share the same card geometry. Global replacement of Android system UI is not promised.
+This is the first installable foundation, not feature parity with the TV launcher or OriginOS. Widgets, folders, drag-and-drop, additional Home pages, Daily Bing/weather, production key configuration and in-app GitHub auto-updates remain to be implemented. Phone-specific shapes and glass rendering will be refined after on-device feedback; several themes currently share the same card geometry. Global replacement of Android system UI is not promised.
+
+## Panel return-path regression
+
+Tile launches use a temporary task with no Home affinity. Close removes only that task and reveals the app underneath. Opening the panel from Home stays inside Home and Close returns to Home. Android 16 emulator instrumentation checks both paths against real task IDs and window focus; the debug-only underlay activity is excluded from release APKs. Physical OriginOS retesting is still required.
+
+## Mobile control-center styling
+
+Icon-only Home toolbar, icon dock, theme-owned glass bevels, compact notification action rows and full-height level capsules replace the initial text-button prototype. Where Android reports cross-window blur support, the panel blurs the app behind it; otherwise it uses a readable solid palette. Android remains responsible for the system shade and protected dialogs. The accessibility handle is an optional alternate entry gesture, not a replacement SystemUI implementation.
+
+## Restoring the initial test preferences
+
+After retaining an explicit XML backup from the debug test installation, use Launcher settings → Import saved settings (.xml). Only whitelisted Home/dock, wallpaper URI, selected style and per-theme appearance values are imported; permissions, notification data and signing material are excluded. The file is size-bounded and parsed before preferences are changed. Android-controlled permissions and persisted photo access must be granted separately after a signature-change reinstall.

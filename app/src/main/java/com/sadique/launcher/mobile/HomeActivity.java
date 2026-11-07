@@ -23,7 +23,7 @@ public final class HomeActivity extends Activity {
     private List<AppCatalog.Entry> apps=Collections.emptyList();
     private AppCatalog.Adapter homeAdapter,drawerAdapter,dockAdapter;
     private GridView grid,dock;
-    private LinearLayout body;
+    private LinearLayout body,dockShell;
     private EditText search;
     private TextView clock,date,heading;
     private boolean drawer,resumed;
@@ -69,31 +69,37 @@ public final class HomeActivity extends Activity {
         homeAdapter.set(selected("home")); dockAdapter.set(selected("dock"));
         String query=search==null?"":search.getText().toString().trim().toLowerCase(Locale.ROOT);
         List<AppCatalog.Entry> filtered=new ArrayList<>(); for(AppCatalog.Entry app:apps) if(app.label.toLowerCase(Locale.ROOT).contains(query)) filtered.add(app);
-        drawerAdapter.set(filtered); if(heading!=null) heading.setText(drawer?"All apps · "+filtered.size():"Home");
+        drawerAdapter.set(filtered); if(heading!=null) heading.setText(drawer?"All apps · "+filtered.size():"Favourites");
     }
     private void build() {
-        theme=new MobileTheme(prefs); FrameLayout root=new FrameLayout(this); wallpaper=new Wallpaper(this); root.addView(wallpaper,new FrameLayout.LayoutParams(-1,-1));
+        theme=new MobileTheme(prefs); FrameLayout root=new GestureFrame(this,new GestureFrame.Route() {
+            public boolean accept(boolean down,float y) { android.graphics.Rect area=new android.graphics.Rect(); boolean inGrid=grid!=null&&grid.getGlobalVisibleRect(area)&&y>=area.top&&y<area.bottom; return down?(!inGrid||!grid.canScrollVertically(-1)):(!drawer&&(!inGrid||!grid.canScrollVertically(1))); }
+            public void swipe(boolean down) { if(down) { if(drawer) showDrawer(false); else panel(); } else showDrawer(true); }
+        }); wallpaper=new Wallpaper(this); root.addView(wallpaper,new FrameLayout.LayoutParams(-1,-1));
         body=Ui.column(this); root.addView(body,new FrameLayout.LayoutParams(-1,-1)); setContentView(root); Ui.insets(this,body,20);
         LinearLayout bar=Ui.row(this);
-        TextView brand=Ui.text(this,theme,"PL  /  "+MobileTheme.NAMES[theme.id],14); brand.setTextColor(Color.WHITE); brand.setShadowLayer(6,0,2,Color.BLACK); bar.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
-        bar.addView(Ui.button(this,theme,"Panel",this::panel)); bar.addView(Ui.button(this,theme,"Settings",this::settings)); body.addView(bar);
-        clock=Ui.text(this,theme,"",72); clock.setTypeface(theme.font,theme.id==2||theme.id==6?Typeface.NORMAL:Typeface.BOLD); clock.setTextColor(Color.WHITE); clock.setShadowLayer(Ui.dp(this,6),0,Ui.dp(this,2),0xdd000000); clock.setPadding(0,Ui.dp(this,26),0,0); body.addView(clock);
+        TextView brand=Ui.text(this,theme,"PL",19); brand.setTypeface(theme.font,Typeface.BOLD); brand.setTextColor(Color.WHITE); brand.setShadowLayer(4,0,1,Color.BLACK); bar.addView(brand,new LinearLayout.LayoutParams(0,Ui.dp(this,48),1)); brand.setGravity(Gravity.CENTER_VERTICAL);
+        android.widget.ImageButton panelButton=Ui.icon(this,theme,"panel","Open control center",Color.WHITE,this::panel); panelButton.setId(R.id.open_panel); bar.addView(panelButton);
+        bar.addView(Ui.icon(this,theme,"settings","Launcher settings",Color.WHITE,this::settings)); body.addView(bar);
+        clock=Ui.text(this,theme,"",82); clock.setSingleLine(true); clock.setHorizontallyScrolling(false); clock.setAutoSizeTextTypeUniformWithConfiguration(44,82,1,android.util.TypedValue.COMPLEX_UNIT_SP); clock.setTypeface(theme.font,theme.id==2||theme.id==6?Typeface.NORMAL:Typeface.BOLD); clock.setTextColor(Color.WHITE); clock.setShadowLayer(Ui.dp(this,6),0,Ui.dp(this,2),0xdd000000); clock.setPadding(0,Ui.dp(this,26),0,0); body.addView(clock);
         date=Ui.text(this,theme,"",16); date.setTextColor(Color.WHITE); date.setShadowLayer(5,0,2,Color.BLACK); body.addView(date);
         LinearLayout tools=Ui.row(this); tools.setPadding(0,Ui.dp(this,20),0,Ui.dp(this,8));
         heading=Ui.text(this,theme,"Home",16); heading.setTextColor(Color.WHITE); heading.setShadowLayer(4,0,1,Color.BLACK); tools.addView(heading,new LinearLayout.LayoutParams(0,-2,1));
-        tools.addView(Ui.button(this,theme,"All apps",()->showDrawer(!drawer))); body.addView(tools);
+        tools.addView(Ui.icon(this,theme,"search","Search apps",Color.WHITE,()-> { showDrawer(true); search.requestFocus(); ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(search,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT); })); tools.addView(Ui.icon(this,theme,"apps","All apps",Color.WHITE,()->showDrawer(!drawer))); body.addView(tools);
         search=new EditText(this); search.setSingleLine(true); search.setTextSize(16); search.setTextColor(theme.ink); search.setHintTextColor(theme.muted()); search.setHint("Search apps"); search.setTypeface(theme.font);
         search.setPadding(Ui.dp(this,16),0,Ui.dp(this,16),0); search.setBackground(theme.panel(getResources().getDisplayMetrics().density,true));
         search.setInputType(android.text.InputType.TYPE_CLASS_TEXT); search.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE); search.setVisibility(drawer?View.VISIBLE:View.GONE); body.addView(search,new LinearLayout.LayoutParams(-1,Ui.dp(this,50)));
         search.addTextChangedListener(new TextWatcher() { public void beforeTextChanged(CharSequence s,int start,int count,int after) {} public void onTextChanged(CharSequence s,int start,int before,int count) { refreshApps(); } public void afterTextChanged(Editable e) {} });
-        homeAdapter=new AppCatalog.Adapter(this,theme,catalog,true); drawerAdapter=new AppCatalog.Adapter(this,theme,catalog); dockAdapter=new AppCatalog.Adapter(this,theme,catalog);
-        grid=new GridView(this); grid.setNumColumns(Math.max(3,Math.min(6,prefs.getInt(MobileTheme.key(theme.id,"columns"),4)))); grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH); grid.setVerticalSpacing(Ui.dp(this,6)); grid.setClipToPadding(false); grid.setBackground(drawer?theme.panel(getResources().getDisplayMetrics().density,true):null); grid.setAdapter(drawer?drawerAdapter:homeAdapter);
+        homeAdapter=new AppCatalog.Adapter(this,theme,catalog,true); drawerAdapter=new AppCatalog.Adapter(this,theme,catalog); dockAdapter=new AppCatalog.Adapter(this,theme,catalog,false,false);
+        grid=new GridView(this); grid.setNumColumns(Math.max(3,Math.min(6,prefs.getInt(MobileTheme.key(theme.id,"columns"),4)))); grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH); grid.setVerticalSpacing(Ui.dp(this,6)); grid.setVerticalScrollBarEnabled(false); grid.setClipToPadding(false); grid.setBackground(drawer?theme.panel(getResources().getDisplayMetrics().density,true):null); grid.setAdapter(drawer?drawerAdapter:homeAdapter);
         grid.setOnItemClickListener((p,v,pos,id)->launch(((AppCatalog.Adapter)grid.getAdapter()).getItem(pos)));
         grid.setOnItemLongClickListener((p,v,pos,id)-> { appMenu(((AppCatalog.Adapter)grid.getAdapter()).getItem(pos),drawer?null:"home"); return true; });
         body.addView(grid,new LinearLayout.LayoutParams(-1,0,1));
-        dock=new GridView(this); dock.setNumColumns(4); dock.setAdapter(dockAdapter); dock.setBackground(theme.panel(getResources().getDisplayMetrics().density,false)); dock.setVerticalScrollBarEnabled(false);
+        dock=new GridView(this); dock.setNumColumns(4); dock.setAdapter(dockAdapter); dock.setBackgroundColor(Color.TRANSPARENT); dock.setVerticalScrollBarEnabled(false);
         dock.setOnItemClickListener((p,v,pos,id)->launch(dockAdapter.getItem(pos))); dock.setOnItemLongClickListener((p,v,pos,id)-> { appMenu(dockAdapter.getItem(pos),"dock"); return true; });
-        body.addView(dock,new LinearLayout.LayoutParams(-1,Ui.dp(this,114)));
+        dockShell=Ui.row(this); dockShell.setPadding(Ui.dp(this,4),Ui.dp(this,2),Ui.dp(this,10),Ui.dp(this,2)); dockShell.setBackground(theme.panel(getResources().getDisplayMetrics().density,false));
+        dockShell.addView(dock,new LinearLayout.LayoutParams(0,Ui.dp(this,84),1)); dockShell.addView(Ui.icon(this,theme,"apps","All apps",theme.ink,()->showDrawer(true)));
+        body.addView(dockShell,new LinearLayout.LayoutParams(-1,Ui.dp(this,88))); dockShell.setVisibility(drawer?View.GONE:View.VISIBLE);
         View.OnTouchListener swipe=new View.OnTouchListener() {
             float x,y;
             public boolean onTouch(View v,android.view.MotionEvent e) {
@@ -109,12 +115,14 @@ public final class HomeActivity extends Activity {
         };
         clock.setOnClickListener(v->showDrawer(true)); date.setOnClickListener(v->panel());
         clock.setOnTouchListener(swipe); date.setOnTouchListener(swipe);
-        updateTime(); refreshApps(); loadPhoto();
+        updateTime(); showDrawer(drawer); refreshApps(); loadPhoto();
     }
-    private void updateTime() { if(clock!=null) { clock.setText(android.text.format.DateFormat.getTimeFormat(this).format(new Date())); date.setText(android.text.format.DateFormat.format("EEEE, d MMMM",new Date())); } }
+    private void updateTime() { if(clock!=null) { String value=android.text.format.DateFormat.getTimeFormat(this).format(new Date()); android.text.SpannableString styled=new android.text.SpannableString(value);
+        if(!android.text.format.DateFormat.is24HourFormat(this)) for(String part:new java.text.DateFormatSymbols().getAmPmStrings()) { int at=value.lastIndexOf(part); if(at>=0&&!part.isEmpty()) styled.setSpan(new android.text.style.RelativeSizeSpan(.35f),at,at+part.length(),android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE); }
+        clock.setText(styled); date.setText(android.text.format.DateFormat.format("EEEE, d MMMM",new Date())); } }
     private void showDrawer(boolean open) {
         drawer=open; if(search==null) return;
-        search.setVisibility(open?View.VISIBLE:View.GONE); grid.setBackground(open?theme.panel(getResources().getDisplayMetrics().density,true):null); grid.setAdapter(open?drawerAdapter:homeAdapter); dock.setVisibility(open?View.GONE:View.VISIBLE);
+        search.setVisibility(open?View.VISIBLE:View.GONE); grid.setBackground(open?theme.panel(getResources().getDisplayMetrics().density,true):null); grid.setAdapter(open?drawerAdapter:homeAdapter); dockShell.setVisibility(open?View.GONE:View.VISIBLE);
         clock.setVisibility(open?View.GONE:View.VISIBLE); date.setVisibility(open?View.GONE:View.VISIBLE);
         if(!open) { search.setText(""); search.clearFocus(); ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(search.getWindowToken(),0); }
         refreshApps();
@@ -145,8 +153,14 @@ public final class HomeActivity extends Activity {
     private void settings() {
         LinearLayout options=Ui.column(this); final Dialog[] sheet={null};
         options.addView(Ui.button(this,theme,"Set as default Home",this::defaultHome));
+        options.addView(Ui.button(this,theme,EdgeSwipeService.active()?"Disable swipe over apps":"Enable swipe over apps",()-> {
+            if(EdgeSwipeService.active()) { prefs.edit().putBoolean("edge_enabled",false).apply(); EdgeSwipeService.stop(); sheet[0].dismiss(); }
+            else { prefs.edit().putBoolean("edge_enabled",true).apply(); sheet[0].dismiss(); open(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); }
+        }));
+        TextView edgeInfo=Ui.text(this,theme,"Optional: enable Personal Panel edge swipe in Accessibility. Pull down from the visible handle just below the top-right status bar. Android’s own top-edge shade remains available. Screen text is not read.",13); edgeInfo.setPadding(0,Ui.dp(this,10),0,Ui.dp(this,14)); options.addView(edgeInfo);
         options.addView(Ui.button(this,theme,"Notification access",()->open(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))));
         TextView note=Ui.text(this,theme,"Notification access reads notifications for your panel. Content stays in memory on this phone; no server or analytics. Android still owns its permission screens and system shade.",14); note.setPadding(0,Ui.dp(this,10),0,Ui.dp(this,10)); options.addView(note);
+        options.addView(Ui.button(this,theme,"Import saved settings (.xml)",()-> { sheet[0].dismiss(); startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE),44); }));
         options.addView(Ui.button(this,theme,"Choose photo wallpaper",()-> { sheet[0].dismiss(); startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE),42); }));
         options.addView(Ui.button(this,theme,"Use theme wallpaper",()-> { prefs.edit().remove("wallpaper").apply(); sheet[0].dismiss(); build(); }));
         TextView label=Ui.text(this,theme,"Visual style",18); label.setPadding(0,Ui.dp(this,18),0,Ui.dp(this,8)); options.addView(label);
@@ -171,6 +185,16 @@ public final class HomeActivity extends Activity {
     }
     @Override protected void onActivityResult(int request,int result,Intent data) {
         super.onActivityResult(request,result,data);
+        if(request==44 && result==RESULT_OK && data!=null && data.getData()!=null) {
+            Uri uri=data.getData(); Ui.toast(this,"Reading settings backup"); images.execute(()-> {
+                try(java.io.InputStream in=getContentResolver().openInputStream(uri)) {
+                    Map<String,Object> restored=SettingsImport.read(in);
+                    main.post(()-> { if(isDestroyed()) return; android.content.SharedPreferences.Editor edit=prefs.edit();
+                        for(Map.Entry<String,Object> entry:restored.entrySet()) { Object value=entry.getValue(); if(value instanceof String) edit.putString(entry.getKey(),(String)value); else if(value instanceof Integer) edit.putInt(entry.getKey(),(Integer)value); else if(value instanceof Boolean) edit.putBoolean(entry.getKey(),(Boolean)value); }
+                        edit.apply(); build(); Ui.toast(this,"Settings restored. Android permissions must be approved separately."); });
+                } catch(Exception invalid) { main.post(()-> { if(!isDestroyed()) Ui.toast(this,"Could not read this settings backup"); }); }
+            });
+        }
         if(request==42 && result==RESULT_OK && data!=null && data.getData()!=null) {
             Uri uri=data.getData(); try { getContentResolver().takePersistableUriPermission(uri,Intent.FLAG_GRANT_READ_URI_PERMISSION); prefs.edit().putString("wallpaper",uri.toString()).apply(); loadPhoto(); } catch(SecurityException denied) { Ui.toast(this,"Photo access unavailable"); }
         }
