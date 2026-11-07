@@ -25,7 +25,7 @@ public final class NotificationPanelActivity extends Activity {
     @Override public void onCreate(Bundle saved) {
         super.onCreate(saved); theme=new MobileTheme(getSharedPreferences("mobile_home",MODE_PRIVATE));
         LinearLayout root=Ui.column(this); root.setBackground(theme.panel(getResources().getDisplayMetrics().density,true)); setContentView(root); Ui.insets(this,root,20);
-        LinearLayout header=Ui.row(this); header.addView(Ui.text(this,theme,"Personal Panel",25),new LinearLayout.LayoutParams(0,-2,1)); header.addView(Ui.button(this,theme,"Close",this::finish)); root.addView(header);
+        LinearLayout header=Ui.row(this); header.addView(Ui.text(this,theme,"Personal Panel",25),new LinearLayout.LayoutParams(0,-2,1)); android.widget.TextView close=Ui.button(this,theme,"Close",this::closePanel); close.setId(R.id.close_panel); header.addView(close); root.addView(header);
         TextView caption=Ui.text(this,theme,MobileTheme.NAMES[theme.id]+" · "+android.text.format.DateFormat.format("EEE, d MMM",new Date()),14); caption.setPadding(0,Ui.dp(this,8),0,Ui.dp(this,12)); root.addView(caption);
         LinearLayout quick=Ui.row(this);
         quick.addView(Ui.button(this,theme,"Wi-Fi",()->system(Settings.ACTION_WIFI_SETTINGS)),new LinearLayout.LayoutParams(0,-2,1));
@@ -59,6 +59,7 @@ public final class NotificationPanelActivity extends Activity {
     @Override protected void onResume() { super.onResume(); render(); if(access() && !NotificationCollector.ready()) NotificationCollector.reconnect(this); }
     @Override protected void onStop() { NotificationCollector.unobserve(changed); super.onStop(); }
     @Override protected void onDestroy() { unregisterReceiver(screen); super.onDestroy(); }
+    private void closePanel() { if(isTaskRoot()) finishAndRemoveTask(); else finish(); }
     private boolean access() { return getSystemService(NotificationManager.class).isNotificationListenerAccessGranted(new ComponentName(this,NotificationCollector.class)); }
     private void system(String action) { try { startActivity(new Intent(action)); } catch(RuntimeException unavailable) { Ui.toast(this,"Setting unavailable"); } }
     private void render() {

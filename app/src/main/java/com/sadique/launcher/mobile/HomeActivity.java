@@ -76,7 +76,7 @@ public final class HomeActivity extends Activity {
         body=Ui.column(this); root.addView(body,new FrameLayout.LayoutParams(-1,-1)); setContentView(root); Ui.insets(this,body,20);
         LinearLayout bar=Ui.row(this);
         TextView brand=Ui.text(this,theme,"PL  /  "+MobileTheme.NAMES[theme.id],14); brand.setTextColor(Color.WHITE); brand.setShadowLayer(6,0,2,Color.BLACK); bar.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
-        bar.addView(Ui.button(this,theme,"Panel",this::panel)); bar.addView(Ui.button(this,theme,"Settings",this::settings)); body.addView(bar);
+        TextView panelButton=Ui.button(this,theme,"Panel",this::panel); panelButton.setId(R.id.open_panel); bar.addView(panelButton); bar.addView(Ui.button(this,theme,"Settings",this::settings)); body.addView(bar);
         clock=Ui.text(this,theme,"",72); clock.setTypeface(theme.font,theme.id==2||theme.id==6?Typeface.NORMAL:Typeface.BOLD); clock.setTextColor(Color.WHITE); clock.setShadowLayer(Ui.dp(this,6),0,Ui.dp(this,2),0xdd000000); clock.setPadding(0,Ui.dp(this,26),0,0); body.addView(clock);
         date=Ui.text(this,theme,"",16); date.setTextColor(Color.WHITE); date.setShadowLayer(5,0,2,Color.BLACK); body.addView(date);
         LinearLayout tools=Ui.row(this); tools.setPadding(0,Ui.dp(this,20),0,Ui.dp(this,8));

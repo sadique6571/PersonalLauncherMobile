@@ -6,7 +6,7 @@
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.HOME"/><category android:name="android.intent.category.DEFAULT"/></intent-filter>
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>
-        <activity android:name=".NotificationPanelActivity" android:exported="false" android:excludeFromRecents="true"/>
+        <activity android:name=".NotificationPanelActivity" android:exported="false" android:taskAffinity="" android:excludeFromRecents="true"/>
         <service android:name=".NotificationCollector" android:label="@string/notification_service" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="true">
             <intent-filter><action android:name="android.service.notification.NotificationListenerService"/></intent-filter>
         </service>

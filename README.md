@@ -25,7 +25,7 @@ No root, ADB helper or accessibility permission is required. The app does not di
 
 ## Build in Android Studio
 
-Open this repository's root directory. Use JDK 17, SDK platform 36 and Gradle 8.13 (AGP 8.13.2). Minimum Android version is 9 / API 28; target SDK is 36. Package: `com.sadique.launcher.mobile`, separate from the TV package. Display version stays **7.0**; internal versionCode starts at **1** for this independent app.
+Open this repository's root directory. Use JDK 17, SDK platform 36 and Gradle 8.13 (AGP 8.13.2). Minimum Android version is 9 / API 28; target SDK is 36. Package: `com.sadique.launcher.mobile`, separate from the TV package. Display version stays **7.0**; internal versionCode is **2** for this independent app.
 
 ```sh
 ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
@@ -42,3 +42,7 @@ Intended first test device reports Android 16, OriginOS 6, 1080×2400, gesture n
 ## Remaining mobile work
 
 This is the first installable foundation, not feature parity with the TV launcher or OriginOS. Widgets, folders, drag-and-drop, additional Home pages, Daily Bing/weather, production signing and GitHub auto-updates remain to be implemented. Phone-specific shapes and glass rendering will be refined after on-device feedback; several themes currently share the same card geometry. Global replacement of Android system UI is not promised.
+
+## Panel return-path regression
+
+Tile launches use a temporary task with no Home affinity. Close removes only that task and reveals the app underneath. Opening the panel from Home stays inside Home and Close returns to Home. Android 16 emulator instrumentation checks both paths against real task IDs and window focus; the debug-only underlay activity is excluded from release APKs. Physical OriginOS retesting is still required.
