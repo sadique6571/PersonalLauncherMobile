@@ -74,9 +74,9 @@ public final class PanelRoutingInstrumentation extends Instrumentation {
     }
     private void swipe(float x,float y,float distance) {
         long down=SystemClock.uptimeMillis();
-        android.view.MotionEvent event=android.view.MotionEvent.obtain(down,down,android.view.MotionEvent.ACTION_DOWN,x,y,0); automation.injectInputEvent(event,true); event.recycle();
-        for(int i=1;i<=8;i++) { SystemClock.sleep(30); event=android.view.MotionEvent.obtain(down,SystemClock.uptimeMillis(),android.view.MotionEvent.ACTION_MOVE,x,y+distance*i/8,0); automation.injectInputEvent(event,true); event.recycle(); }
-        event=android.view.MotionEvent.obtain(down,SystemClock.uptimeMillis(),android.view.MotionEvent.ACTION_UP,x,y+distance,0); automation.injectInputEvent(event,true); event.recycle();
+        android.view.MotionEvent event=android.view.MotionEvent.obtain(down,down,android.view.MotionEvent.ACTION_DOWN,x,y,0); event.setSource(android.view.InputDevice.SOURCE_TOUCHSCREEN); if(!automation.injectInputEvent(event,true)) throw new AssertionError("Touch injection failed"); event.recycle();
+        for(int i=1;i<=8;i++) { SystemClock.sleep(30); event=android.view.MotionEvent.obtain(down,SystemClock.uptimeMillis(),android.view.MotionEvent.ACTION_MOVE,x,y+distance*i/8,0); event.setSource(android.view.InputDevice.SOURCE_TOUCHSCREEN); if(!automation.injectInputEvent(event,true)) throw new AssertionError("Touch injection failed"); event.recycle(); }
+        event=android.view.MotionEvent.obtain(down,SystemClock.uptimeMillis(),android.view.MotionEvent.ACTION_UP,x,y+distance,0); event.setSource(android.view.InputDevice.SOURCE_TOUCHSCREEN); if(!automation.injectInputEvent(event,true)) throw new AssertionError("Touch injection failed"); event.recycle();
     }
     private void shell(String command) throws Exception { try(ParcelFileDescriptor pipe=automation.executeShellCommand(command); java.io.InputStream in=new ParcelFileDescriptor.AutoCloseInputStream(pipe)) { while(in.read()!=-1) { } } }
     private void screenshot(String name) throws Exception {

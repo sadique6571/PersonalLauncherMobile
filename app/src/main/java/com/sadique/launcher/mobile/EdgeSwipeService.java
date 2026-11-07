@@ -43,6 +43,7 @@ public final class EdgeSwipeService extends AccessibilityService {
         int width=getResources().getDisplayMetrics().widthPixels/2;
         WindowManager.LayoutParams position=new WindowManager.LayoutParams(width,Ui.dp(this,30),WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE|WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL|WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,PixelFormat.TRANSLUCENT);
+        if(Build.VERSION.SDK_INT>=30) position.setFitInsetsTypes(0);
         position.gravity=Gravity.TOP|Gravity.RIGHT; position.layoutInDisplayCutoutMode=WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         try { windows.addView(area,position); handle=area; } catch(RuntimeException denied) { Ui.toast(this,"Edge swipe unavailable; use the Panel tile"); }
     }

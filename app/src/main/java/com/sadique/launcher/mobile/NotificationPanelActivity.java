@@ -74,7 +74,10 @@ public final class NotificationPanelActivity extends Activity {
                 catch(RuntimeException malformed) { return Ui.text(NotificationPanelActivity.this,theme,"Notification unavailable",15); }
             }
         };
-        list.setAdapter(adapter); root.addView(list,new LinearLayout.LayoutParams(-1,0,1));
+        // Controls scroll with notifications on short/landscape windows; Close stays pinned above.
+        LinearLayout topContent=Ui.column(this);
+        while(root.getChildCount()>1) { View child=root.getChildAt(1); root.removeViewAt(1); topContent.addView(child); }
+        list.addHeaderView(topContent,null,false); list.setAdapter(adapter); root.addView(list,new LinearLayout.LayoutParams(-1,0,1));
         IntentFilter filter=new IntentFilter(); filter.addAction(Intent.ACTION_SCREEN_OFF); filter.addAction(Intent.ACTION_USER_PRESENT);
         if(Build.VERSION.SDK_INT>=33) registerReceiver(screen,filter,Context.RECEIVER_NOT_EXPORTED); else registerReceiver(screen,filter);
         if(Build.VERSION.SDK_INT>=30 && getWindow().getInsetsController()!=null) getWindow().getInsetsController().setSystemBarsAppearance(theme.light()?android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS:0,android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS|android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
