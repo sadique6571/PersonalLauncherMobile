@@ -33,6 +33,12 @@ final class Ui {
         TextView note=text(c,t,subtitle,10); note.setTextColor(t.muted()); note.setSingleLine(true); note.setEllipsize(android.text.TextUtils.TruncateAt.END); card.addView(note);
         card.setClickable(true); card.setFocusable(true); card.setContentDescription(title+", "+subtitle); card.setOnClickListener(v->action.run()); return card;
     }
+    /** Control Center card: the same control, with a fully rounded 28dp corner. */
+    static View roundControl(Context c,MobileTheme t,String symbol,String title,String subtitle,Runnable action) {
+        View card=control(c,t,symbol,title,subtitle,action);
+        ((android.graphics.drawable.GradientDrawable)card.getBackground()).setCornerRadius(Ui.dp(c,28));
+        return card;
+    }
     static Dialog sheet(Activity a,MobileTheme t,String title,LinearLayout body) {
         Dialog d=new Dialog(a); LinearLayout outer=column(a); int p=dp(a,20); outer.setPadding(p,p,p,p);
         outer.setBackground(t.panel(a.getResources().getDisplayMetrics().density,true));
