@@ -6,7 +6,7 @@ Independent Android phone launcher with the Personal Launcher theme family. The 
 
 - Portrait Home and searchable all-apps grid, using recycled views and background app/icon loading.
 - Saved Home favourites, four-app dock, add/remove and move-earlier/later controls. Long-press an app to edit it.
-- TV Glass, Classic, Dune Loom, Pearl Current, Cobalt Rail, Sage Fold, Pine Mist and Amber Night.
+- TV Glass, Classic, Dune Loom, Pearl Current, Cobalt Rail, Sage Fold, Pine Mist, Amber Night and iPhone Glass.
 - Per-theme intensity, transparency, font, accent, columns and icon corners; theme reset affects only that appearance.
 - Local photo wallpaper via Android's document picker, decoded off the UI thread with a 2048px bound. Shared wallpaper and app ordering survive theme changes.
 - White clock/date with shadow. Swipe up on Home to open apps, swipe down to open the panel; child scrolling is preserved when the grid can scroll. Explicit icon buttons are also available.
@@ -25,7 +25,7 @@ No root or ADB helper is required. Core Home, tile and notifications do not requ
 
 ## Build in Android Studio
 
-Open this repository's root directory. Use JDK 17, SDK platform 36 and Gradle 8.13 (AGP 8.13.2). Minimum Android version is 9 / API 28; target SDK is 36. Package: `com.sadique.launcher.mobile`, separate from the TV package. Display version stays **7.0**; internal versionCode is **2** for this independent app.
+Open this repository's root directory. Use JDK 17, SDK platform 36 and Gradle 8.13 (AGP 8.13.2). Minimum Android version is 9 / API 28; target SDK is 36. Package: `com.sadique.launcher.mobile`, separate from the TV package. Display version stays **7.0**; internal versionCode is **3** for this independent app.
 
 ```sh
 ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
@@ -46,6 +46,17 @@ This is the first installable foundation, not feature parity with the TV launche
 ## Panel return-path regression
 
 Tile launches use a temporary task with no Home affinity. Close removes only that task and reveals the app underneath. Opening the panel from Home stays inside Home and Close returns to Home. Android 16 emulator instrumentation checks both paths against real task IDs and window focus; the debug-only underlay activity is excluded from release APKs. Physical OriginOS retesting is still required.
+
+## iPhone Glass theme
+
+The ninth theme, **iPhone Glass** (dark navy gradient, iOS system-blue accent), restyles the existing Home and panel without adding new screens:
+
+- Squircle app-icon plates: the icon corner is capped at 18dp on the 58dp icon, so icons stay squircle even when the panel corner radius is raised. Other themes use the panel radius for icons, unchanged.
+- Glass pill dock: the 4-app dock is a full pill (44dp corner radius) with the theme glass bevel. Other themes keep their panel-radius dock, unchanged.
+- Control Center style panel: the Personal Panel keeps its rounded toggle cards (Wi-Fi, Bluetooth, Display, Swipe access) and its full-height vertical brightness/volume capsules; only the palette and corner geometry change with the theme.
+- Home clock and date stay white with shadow, exactly as in the other themes.
+
+What iPhone Glass does **not** do: it is a Home/panel theme, not an iPhone. There is no lock screen and no Face ID unlock — an Android launcher cannot replace the lock screen; Android owns the keyguard, PIN/biometric UI, Recents and the system shade. Calculator, Messages, Photos and other apps are not built into the launcher; tapping their icons opens the phone's own apps, with their own Android icons. App icons keep their Android artwork; only the squircle plate behind them is themed.
 
 ## Mobile control-center styling
 

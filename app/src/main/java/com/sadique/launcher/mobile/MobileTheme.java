@@ -6,11 +6,12 @@ import android.graphics.drawable.GradientDrawable;
 
 /** Shared theme identity, with a private preference namespace for each appearance. */
 final class MobileTheme {
-    static final String[] NAMES={"TV Glass","Classic","Dune Loom","Pearl Current","Cobalt Rail","Sage Fold","Pine Mist","Amber Night"};
-    private static final int[] TOP={0xff253049,0xff18334b,0xff26363a,0xfff9f1e8,0xff12275c,0xffdce6be,0xff17382c,0xff2a1a0c};
-    private static final int[] BOTTOM={0xff101621,0xff09182a,0xff111e24,0xffe9e4dc,0xff07112d,0xffc5d4ac,0xff08150f,0xff120a04};
-    private static final int[] INK={0xfff5f7ff,0xfff1f5fb,0xffffedd8,0xff242d30,0xfff1f5fb,0xff0d2b1a,0xffeafff2,0xfffff3dd};
-    private static final int[] ACCENT={0xffb9c8ff,0xff40d9ff,0xffedab75,0xff006d72,0xffffd92f,0xff195c36,0xff8fd0b2,0xfff5b942};
+    static final String[] NAMES={"TV Glass","Classic","Dune Loom","Pearl Current","Cobalt Rail","Sage Fold","Pine Mist","Amber Night","iPhone Glass"};
+    static final int IPHONE=8;
+    private static final int[] TOP={0xff253049,0xff18334b,0xff26363a,0xfff9f1e8,0xff12275c,0xffdce6be,0xff17382c,0xff2a1a0c,0xff20344f};
+    private static final int[] BOTTOM={0xff101621,0xff09182a,0xff111e24,0xffe9e4dc,0xff07112d,0xffc5d4ac,0xff08150f,0xff120a04,0xff070d18};
+    private static final int[] INK={0xfff5f7ff,0xfff1f5fb,0xffffedd8,0xff242d30,0xfff1f5fb,0xff0d2b1a,0xffeafff2,0xfffff3dd,0xfff5f7ff};
+    private static final int[] ACCENT={0xffb9c8ff,0xff40d9ff,0xffedab75,0xff006d72,0xffffd92f,0xff195c36,0xff8fd0b2,0xfff5b942,0xff0a84ff};
     final int id,top,bottom,ink,accent,intensity,radius;
     final Typeface font;
     final SharedPreferences prefs;
@@ -25,6 +26,12 @@ final class MobileTheme {
     static int clamp(int id) { return Math.max(0,Math.min(NAMES.length-1,id)); }
     static String key(int id,String name) { return "appearance."+clamp(id)+"."+name; }
     boolean light() { return id==3||id==5; }
+    boolean iphone() { return id==IPHONE; }
+    /** iPhone-style squircle icons: the plate corner is capped at 18dp so the icon stays squircle even when the user raises the panel corner radius. Other themes use the panel radius unchanged. */
+    static int iconRadiusFor(int id,int radius) { return id==IPHONE?Math.min(radius,18):radius; }
+    int iconRadius() { return iconRadiusFor(id,radius); }
+    /** iPhone-style glass dock: a full pill (44dp radius) instead of the theme panel radius. Other themes keep their panel radius unchanged. */
+    GradientDrawable dockPanel(float density) { GradientDrawable d=panel(density,false); if(iphone()) d.setCornerRadius(44*density); return d; }
     int muted() { return mix(ink,top,.22f); }
     int focusInk() { return contrast(accent,top)>=3?accent:ink; }
     int accentInk() { return contrast(0xff11191c,accent)>=contrast(0xffffffff,accent)?0xff11191c:0xffffffff; }
