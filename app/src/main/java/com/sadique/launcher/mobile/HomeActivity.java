@@ -1,8 +1,11 @@
 package com.sadique.launcher.mobile;
 
+import android.Manifest;
 import android.app.*;
 import android.app.role.RoleManager;
 import android.content.*;
+import android.content.pm.PackageManager;
+import android.location.*;
 import android.content.res.ColorStateList;
 import android.graphics.*;
 import android.graphics.drawable.Drawable;
@@ -23,10 +26,11 @@ public final class HomeActivity extends Activity {
     private List<AppCatalog.Entry> apps=Collections.emptyList();
     private AppCatalog.Adapter homeAdapter,drawerAdapter,dockAdapter;
     private GridView grid,dock;
-    private LinearLayout body,dockShell;
+    private LinearLayout body,dockShell,widgetCard;
     private EditText search;
-    private TextView clock,date,heading;
-    private boolean drawer,resumed;
+    private TextView clock,date,heading,weather,libraryButton;
+    private ScrollView libraryView;
+    private boolean drawer,resumed,library;
     private Bitmap photo;
     private Wallpaper wallpaper;
     private String photoUri="";
@@ -70,6 +74,7 @@ public final class HomeActivity extends Activity {
         String query=search==null?"":search.getText().toString().trim().toLowerCase(Locale.ROOT);
         List<AppCatalog.Entry> filtered=new ArrayList<>(); for(AppCatalog.Entry app:apps) if(app.label.toLowerCase(Locale.ROOT).contains(query)) filtered.add(app);
         drawerAdapter.set(filtered); if(heading!=null) heading.setText(drawer?"All apps · "+filtered.size():"Favourites");
+        if(library && libraryView!=null) { libraryView.removeAllViews(); libraryView.addView(AppLibrary.build(this,theme,catalog,filtered,app->launch(app),app->appMenu(app,null))); }
     }
     private void build() {
         theme=new MobileTheme(prefs); FrameLayout root=new GestureFrame(this,new GestureFrame.Route() {
@@ -81,8 +86,10 @@ public final class HomeActivity extends Activity {
         TextView brand=Ui.text(this,theme,"PL",19); brand.setTypeface(theme.font,Typeface.BOLD); brand.setTextColor(Color.WHITE); brand.setShadowLayer(4,0,1,Color.BLACK); bar.addView(brand,new LinearLayout.LayoutParams(0,Ui.dp(this,48),1)); brand.setGravity(Gravity.CENTER_VERTICAL);
         android.widget.ImageButton panelButton=Ui.icon(this,theme,"panel","Open control center",Color.WHITE,this::panel); panelButton.setId(R.id.open_panel); bar.addView(panelButton);
         bar.addView(Ui.icon(this,theme,"settings","Launcher settings",Color.WHITE,this::settings)); body.addView(bar);
-        clock=Ui.text(this,theme,"",82); clock.setSingleLine(true); clock.setHorizontallyScrolling(false); clock.setAutoSizeTextTypeUniformWithConfiguration(44,82,1,android.util.TypedValue.COMPLEX_UNIT_SP); clock.setTypeface(theme.font,theme.id==2||theme.id==6?Typeface.NORMAL:Typeface.BOLD); clock.setTextColor(Color.WHITE); clock.setShadowLayer(Ui.dp(this,6),0,Ui.dp(this,2),0xdd000000); clock.setPadding(0,Ui.dp(this,26),0,0); body.addView(clock);
-        date=Ui.text(this,theme,"",16); date.setTextColor(Color.WHITE); date.setShadowLayer(5,0,2,Color.BLACK); body.addView(date);
+        widgetCard=Ui.column(this); widgetCard.setPadding(Ui.dp(this,16),Ui.dp(this,10),Ui.dp(this,16),Ui.dp(this,12)); widgetCard.setBackground(theme.panel(getResources().getDisplayMetrics().density,false)); body.addView(widgetCard,new LinearLayout.LayoutParams(-1,-2));
+        clock=Ui.text(this,theme,"",82); clock.setSingleLine(true); clock.setHorizontallyScrolling(false); clock.setAutoSizeTextTypeUniformWithConfiguration(44,82,1,android.util.TypedValue.COMPLEX_UNIT_SP); clock.setTypeface(theme.font,theme.id==2||theme.id==6?Typeface.NORMAL:Typeface.BOLD); clock.setTextColor(Color.WHITE); clock.setShadowLayer(Ui.dp(this,6),0,Ui.dp(this,2),0xdd000000); clock.setPadding(0,Ui.dp(this,4),0,0); widgetCard.addView(clock);
+        date=Ui.text(this,theme,"",16); date.setTextColor(Color.WHITE); date.setShadowLayer(5,0,2,Color.BLACK); widgetCard.addView(date);
+        weather=Ui.text(this,theme,"",14); weather.setTextColor(Color.WHITE); weather.setShadowLayer(5,0,2,Color.BLACK); weather.setVisibility(View.GONE); widgetCard.addView(weather);
         LinearLayout tools=Ui.row(this); tools.setPadding(0,Ui.dp(this,20),0,Ui.dp(this,8));
         heading=Ui.text(this,theme,"Home",16); heading.setTextColor(Color.WHITE); heading.setShadowLayer(4,0,1,Color.BLACK); tools.addView(heading,new LinearLayout.LayoutParams(0,-2,1));
         tools.addView(Ui.icon(this,theme,"search","Search apps",Color.WHITE,()-> { showDrawer(true); search.requestFocus(); ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(search,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT); })); tools.addView(Ui.icon(this,theme,"apps","All apps",Color.WHITE,()->showDrawer(!drawer))); body.addView(tools);
@@ -90,6 +97,7 @@ public final class HomeActivity extends Activity {
         search.setPadding(Ui.dp(this,16),0,Ui.dp(this,16),0); search.setBackground(theme.panel(getResources().getDisplayMetrics().density,true));
         search.setInputType(android.text.InputType.TYPE_CLASS_TEXT); search.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE); search.setVisibility(drawer?View.VISIBLE:View.GONE); body.addView(search,new LinearLayout.LayoutParams(-1,Ui.dp(this,50)));
         search.addTextChangedListener(new TextWatcher() { public void beforeTextChanged(CharSequence s,int start,int count,int after) {} public void onTextChanged(CharSequence s,int start,int before,int count) { refreshApps(); } public void afterTextChanged(Editable e) {} });
+        libraryButton=Ui.text(this,theme,"App Library",14); libraryButton.setTextColor(theme.focusInk()); libraryButton.setGravity(Gravity.END); libraryButton.setPadding(0,Ui.dp(this,8),Ui.dp(this,4),Ui.dp(this,8)); libraryButton.setVisibility(View.GONE); libraryButton.setOnClickListener(v->showLibrary(!library)); body.addView(libraryButton);
         homeAdapter=new AppCatalog.Adapter(this,theme,catalog,true); drawerAdapter=new AppCatalog.Adapter(this,theme,catalog); dockAdapter=new AppCatalog.Adapter(this,theme,catalog,false,false);
         grid=new GridView(this); grid.setNumColumns(Math.max(3,Math.min(6,prefs.getInt(MobileTheme.key(theme.id,"columns"),4)))); grid.setStretchMode(GridView.STRETCH_COLUMN_WIDTH); grid.setVerticalSpacing(Ui.dp(this,6)); grid.setVerticalScrollBarEnabled(false); grid.setClipToPadding(false); grid.setBackground(drawer?theme.panel(getResources().getDisplayMetrics().density,true):null); grid.setAdapter(drawer?drawerAdapter:homeAdapter);
         grid.setOnItemClickListener((p,v,pos,id)->launch(((AppCatalog.Adapter)grid.getAdapter()).getItem(pos)));
@@ -100,6 +108,7 @@ public final class HomeActivity extends Activity {
         dockShell=Ui.row(this); dockShell.setPadding(Ui.dp(this,4),Ui.dp(this,2),Ui.dp(this,10),Ui.dp(this,2)); dockShell.setBackground(theme.dockPanel(getResources().getDisplayMetrics().density));
         dockShell.addView(dock,new LinearLayout.LayoutParams(0,Ui.dp(this,84),1)); dockShell.addView(Ui.icon(this,theme,"apps","All apps",theme.ink,()->showDrawer(true)));
         body.addView(dockShell,new LinearLayout.LayoutParams(-1,Ui.dp(this,88))); dockShell.setVisibility(drawer?View.GONE:View.VISIBLE);
+        libraryView=new ScrollView(this); libraryView.setVerticalScrollBarEnabled(false); libraryView.setVisibility(View.GONE); body.addView(libraryView,new LinearLayout.LayoutParams(-1,0,1));
         View.OnTouchListener swipe=new View.OnTouchListener() {
             float x,y;
             public boolean onTouch(View v,android.view.MotionEvent e) {
@@ -115,17 +124,71 @@ public final class HomeActivity extends Activity {
         };
         clock.setOnClickListener(v->showDrawer(true)); date.setOnClickListener(v->panel());
         clock.setOnTouchListener(swipe); date.setOnTouchListener(swipe);
-        updateTime(); showDrawer(drawer); refreshApps(); loadPhoto();
+        library=false; updateTime(); showDrawer(drawer); refreshApps(); loadPhoto(); weather();
     }
     private void updateTime() { if(clock!=null) { String value=android.text.format.DateFormat.getTimeFormat(this).format(new Date()); android.text.SpannableString styled=new android.text.SpannableString(value);
         if(!android.text.format.DateFormat.is24HourFormat(this)) for(String part:new java.text.DateFormatSymbols().getAmPmStrings()) { int at=value.lastIndexOf(part); if(at>=0&&!part.isEmpty()) styled.setSpan(new android.text.style.RelativeSizeSpan(.35f),at,at+part.length(),android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE); }
         clock.setText(styled); date.setText(android.text.format.DateFormat.format("EEEE, d MMMM",new Date())); } }
     private void showDrawer(boolean open) {
         drawer=open; if(search==null) return;
-        search.setVisibility(open?View.VISIBLE:View.GONE); grid.setBackground(open?theme.panel(getResources().getDisplayMetrics().density,true):null); grid.setAdapter(open?drawerAdapter:homeAdapter); dockShell.setVisibility(open?View.GONE:View.VISIBLE);
-        clock.setVisibility(open?View.GONE:View.VISIBLE); date.setVisibility(open?View.GONE:View.VISIBLE);
+        if(!open) showLibrary(false);
+        search.setVisibility(open?View.VISIBLE:View.GONE); libraryButton.setVisibility(open?View.VISIBLE:View.GONE); grid.setBackground(open?theme.panel(getResources().getDisplayMetrics().density,true):null); grid.setAdapter(open?drawerAdapter:homeAdapter); dockShell.setVisibility(open?View.GONE:View.VISIBLE);
+        widgetCard.setVisibility(open?View.GONE:View.VISIBLE);
         if(!open) { search.setText(""); search.clearFocus(); ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).hideSoftInputFromWindow(search.getWindowToken(),0); }
         refreshApps();
+    }
+    private void showLibrary(boolean open) {
+        library=open; if(libraryView==null) return;
+        libraryView.setVisibility(open?View.VISIBLE:View.GONE); grid.setVisibility(open?View.GONE:View.VISIBLE);
+        libraryButton.setText(open?"All apps":"App Library");
+        if(open) refreshApps();
+    }
+    /** Home widget weather: current coarse location once per refresh, Okara fallback. Coordinates are never stored. */
+    private void weather() {
+        String cached=prefs.getString("weather_text","");
+        if(!cached.isEmpty() && weather!=null) { weather.setText(cached); weather.setVisibility(View.VISIBLE); }
+        if(checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)!=PackageManager.PERMISSION_GRANTED) {
+            if(!prefs.getBoolean("location_asked",false)) { prefs.edit().putBoolean("location_asked",true).apply(); requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},45); }
+            else fetchWeather(Weather.OKARA_LATITUDE,Weather.OKARA_LONGITUDE,"Okara · fallback");
+            return;
+        }
+        fetchWeatherWithLocation();
+    }
+    @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] grants) {
+        super.onRequestPermissionsResult(request,permissions,grants);
+        if(request==45) fetchWeatherWithLocation();
+    }
+    @android.annotation.SuppressLint("MissingPermission")
+    private void fetchWeatherWithLocation() {
+        double latitude=Weather.OKARA_LATITUDE,longitude=Weather.OKARA_LONGITUDE; String label="Okara · fallback";
+        try {
+            LocationManager locations=getSystemService(LocationManager.class);
+            Location last=null;
+            if(locations!=null) { last=locations.getLastKnownLocation(LocationManager.NETWORK_PROVIDER); if(last==null) last=locations.getLastKnownLocation(LocationManager.GPS_PROVIDER); }
+            if(last!=null) { latitude=last.getLatitude(); longitude=last.getLongitude(); label="Current location"; }
+        } catch(SecurityException denied) { /* No location: Okara fallback below. */ }
+        fetchWeather(latitude,longitude,label);
+    }
+    private void fetchWeather(double latitude,double longitude,String label) {
+        String url=Weather.url(latitude,longitude);
+        images.execute(()-> {
+            String summary=null;
+            try {
+                java.net.HttpURLConnection connection=(java.net.HttpURLConnection)new java.net.URL(url).openConnection();
+                connection.setConnectTimeout(5000); connection.setReadTimeout(5000); connection.setRequestMethod("GET");
+                if(connection.getResponseCode()==200) {
+                    java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream(); byte[] block=new byte[4096]; int length;
+                    try(java.io.InputStream in=connection.getInputStream()) { while((length=in.read(block))!=-1) { if(out.size()+length>65536) break; out.write(block,0,length); } }
+                    summary=Weather.summary(out.toString("UTF-8"),label);
+                }
+                connection.disconnect();
+            } catch(Exception offline) { /* Keep the cached reading; no weather line if there is none. */ }
+            String shown=summary;
+            main.post(()-> {
+                if(isDestroyed() || weather==null) return;
+                if(shown!=null) { prefs.edit().putString("weather_text",shown).apply(); weather.setText(shown); weather.setVisibility(View.VISIBLE); }
+            });
+        });
     }
     private void launch(AppCatalog.Entry app) {
         try { ComponentName name=ComponentName.unflattenFromString(app.key); if(name!=null) startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(name).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)); }
@@ -160,6 +223,8 @@ public final class HomeActivity extends Activity {
         TextView edgeInfo=Ui.text(this,theme,"Optional: enable Personal Panel edge swipe in Accessibility. Pull down from the visible handle just below the top-right status bar. Android’s own top-edge shade remains available. Screen text is not read.",13); edgeInfo.setPadding(0,Ui.dp(this,10),0,Ui.dp(this,14)); options.addView(edgeInfo);
         options.addView(Ui.button(this,theme,"Notification access",()->open(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))));
         TextView note=Ui.text(this,theme,"Notification access reads notifications for your panel. Content stays in memory on this phone; no server or analytics. Android still owns its permission screens and system shade.",14); note.setPadding(0,Ui.dp(this,10),0,Ui.dp(this,10)); options.addView(note);
+        options.addView(Ui.button(this,theme,"Weather location",()->open(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+getPackageName())))));
+        TextView weatherInfo=Ui.text(this,theme,"Weather uses your current coarse location, once per refresh. Deny it in Android settings and the widget falls back to Okara. Coordinates are never stored.",13); weatherInfo.setPadding(0,Ui.dp(this,10),0,Ui.dp(this,14)); options.addView(weatherInfo);
         options.addView(Ui.button(this,theme,"Import saved settings (.xml)",()-> { sheet[0].dismiss(); startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE),44); }));
         options.addView(Ui.button(this,theme,"Choose photo wallpaper",()-> { sheet[0].dismiss(); startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE),42); }));
         options.addView(Ui.button(this,theme,"Use theme wallpaper",()-> { prefs.edit().remove("wallpaper").apply(); sheet[0].dismiss(); build(); }));

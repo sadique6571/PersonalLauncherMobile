@@ -10,6 +10,9 @@ Independent Android phone launcher with the Personal Launcher theme family. The 
 - Per-theme intensity, transparency, font, accent, columns and icon corners; theme reset affects only that appearance.
 - Local photo wallpaper via Android's document picker, decoded off the UI thread with a 2048px bound. Shared wallpaper and app ordering survive theme changes.
 - White clock/date with shadow. Swipe up on Home to open apps, swipe down to open the panel; child scrolling is preserved when the grid can scroll. Explicit icon buttons are also available.
+- Built-in Home widget: a glass card with the live clock, date and live weather. Weather comes from Open-Meteo (free, no key) for the phone's current coarse location; it needs INTERNET and the user-approved ACCESS_COARSE_LOCATION permission (coarse only — no fine location, no continuous or background tracking, coordinates are never stored and go only to Open-Meteo for that one request). If location is denied, off or unavailable, the widget falls back to Okara (30.81, 73.45) and says so on the widget; offline it shows the last cached reading, or no weather line at all. No weather data is logged or uploaded anywhere else.
+- App Library: inside the drawer, "App Library" groups every app by the first letter of its label (A–Z sections, then "#"). Android exposes no reliable per-app category, so this is a label-initial grouping, not a store category. Search ("Search apps") filters the same apps either way.
+- Control Center: the Personal Panel now has a larger time header (56sp) with a "Control Center" subtitle, fully rounded 28dp toggle cards (Wi-Fi, Bluetooth, Display, Swipe access) and rounded 20dp notification cards; the full-height vertical brightness/volume capsules are unchanged. It still does **not** replace the Android system shade — see "Setup and permissions".
 - Themed notification panel with real notifications, open/dismiss/clear-dismissible, app-provided actions and free-text replies where supported.
 - Full-height brightness and volume capsules. System brightness requires optional user-approved Modify system settings access; dragging brightness selects manual brightness. Wi-Fi, Bluetooth and display buttons open the appropriate Android settings screens.
 - Optional **Personal Panel** Quick Settings tile opens the panel while another app is active, without routing through Home.
@@ -17,7 +20,7 @@ Independent Android phone launcher with the Personal Launcher theme family. The 
 
 ## Setup and permissions
 
-Open Launcher settings → Set as default Home, and approve Android's chooser. Notification access is optional: Launcher settings → Notification access. Notifications remain in memory; there is no INTERNET permission, telemetry, account login, notification-content logging or notification database.
+Open Launcher settings → Set as default Home, and approve Android's chooser. Notification access is optional: Launcher settings → Notification access. Notifications remain in memory; there is no telemetry, account login, notification-content logging or notification database. INTERNET is used only for the Home widget weather (Open-Meteo, current coarse location or the Okara fallback — see above); nothing else uses the network. Location access is optional and coarse-only: the first time the widget shows, Android asks once; deny it and the widget falls back to Okara. Grant it later from Launcher settings → Weather location, which opens the app's Android settings page. No location is tracked, stored or shared.
 
 To use the panel outside Home, edit Android's Quick Settings tiles and add **Personal Panel**. This tile opens our Activity; it does **not** replace the system notification shade or claim the top-edge gesture in other apps. Notification content is not shown while the phone is locked. Android may redact sensitive content, restrict actions or disconnect the listener. Work-profile/device policy restrictions remain in force.
 
@@ -25,7 +28,7 @@ No root or ADB helper is required. Core Home, tile and notifications do not requ
 
 ## Build in Android Studio
 
-Open this repository's root directory. Use JDK 17, SDK platform 36 and Gradle 8.13 (AGP 8.13.2). Minimum Android version is 9 / API 28; target SDK is 36. Package: `com.sadique.launcher.mobile`, separate from the TV package. Display version stays **7.0**; internal versionCode is **3** for this independent app.
+Open this repository's root directory. Use JDK 17, SDK platform 36 and Gradle 8.13 (AGP 8.13.2). Minimum Android version is 9 / API 28; target SDK is 36. Package: `com.sadique.launcher.mobile`, separate from the TV package. Display version stays **7.0**; internal versionCode is **4** for this independent app.
 
 ```sh
 ./gradlew testDebugUnitTest lintDebug assembleDebug assembleRelease
@@ -41,7 +44,7 @@ Intended first test device reports Android 16, OriginOS 6, 1080×2400, gesture n
 
 ## Remaining mobile work
 
-This is the first installable foundation, not feature parity with the TV launcher or OriginOS. Widgets, folders, drag-and-drop, additional Home pages, Daily Bing/weather, production key configuration and in-app GitHub auto-updates remain to be implemented. Phone-specific shapes and glass rendering will be refined after on-device feedback; several themes currently share the same card geometry. Global replacement of Android system UI is not promised.
+This is the first installable foundation, not feature parity with the TV launcher or OriginOS. The built-in Home widget (clock/date/weather) and the label-initial App Library are done; folders, drag-and-drop, additional Home pages, Daily Bing, production key configuration and in-app GitHub auto-updates remain to be implemented. Hosting other apps' widgets (AppWidgetHost) is future work — the Home widget is built-in only. Phone-specific shapes and glass rendering will be refined after on-device feedback; several themes currently share the same card geometry. Global replacement of Android system UI is not promised.
 
 ## Panel return-path regression
 
@@ -57,6 +60,14 @@ The ninth theme, **iPhone Glass** (dark navy gradient, iOS system-blue accent), 
 - Home clock and date stay white with shadow, exactly as in the other themes.
 
 What iPhone Glass does **not** do: it is a Home/panel theme, not an iPhone. There is no lock screen and no Face ID unlock — an Android launcher cannot replace the lock screen; Android owns the keyguard, PIN/biometric UI, Recents and the system shade. Calculator, Messages, Photos and other apps are not built into the launcher; tapping their icons opens the phone's own apps, with their own Android icons. App icons keep their Android artwork; only the squircle plate behind them is themed.
+
+## Home widget, App Library and Control Center
+
+What this build adds, and what it deliberately does not:
+
+- Home widget: built-in only — live clock, date and Open-Meteo weather for the current coarse location, Okara fallback when location is unavailable. No live weather without INTERNET; no fine location; no tracking; no stored coordinates.
+- App Library: label-initial grouping (A–Z, then "#"). It is not a Play Store category view — Android gives the launcher no reliable per-app category.
+- Control Center: rounder cards and a larger header on the same Personal Panel. It opens the same Android settings screens and the same vertical sliders. It does not replace the system shade, the lock screen or the keyguard.
 
 ## Mobile control-center styling
 

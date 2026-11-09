@@ -29,18 +29,19 @@ public final class NotificationPanelActivity extends Activity {
         boolean blur=Build.VERSION.SDK_INT>=31 && getSystemService(WindowManager.class).isCrossWindowBlurEnabled();
         root.setBackground(theme.panel(getResources().getDisplayMetrics().density,!blur)); setContentView(root); if(Build.VERSION.SDK_INT>=31 && blur) getWindow().setBackgroundBlurRadius(Ui.dp(this,36)); Ui.insets(this,root,20);
         LinearLayout header=Ui.row(this); LinearLayout titles=Ui.column(this);
-        TextView time=Ui.text(this,theme,android.text.format.DateFormat.getTimeFormat(this).format(new Date()),42); time.setTypeface(theme.font,android.graphics.Typeface.BOLD); titles.addView(time);
-        TextView day=Ui.text(this,theme,android.text.format.DateFormat.format("EEEE, d MMMM",new Date()).toString(),13); day.setTextColor(theme.muted()); titles.addView(day);
+        TextView time=Ui.text(this,theme,android.text.format.DateFormat.getTimeFormat(this).format(new Date()),56); time.setTypeface(theme.font,android.graphics.Typeface.BOLD); titles.addView(time);
+        TextView day=Ui.text(this,theme,android.text.format.DateFormat.format("EEEE, d MMMM",new Date()).toString(),14); day.setTextColor(theme.muted()); titles.addView(day);
+        TextView subtitle=Ui.text(this,theme,"Control Center",13); subtitle.setTextColor(theme.muted()); titles.addView(subtitle);
         header.addView(titles,new LinearLayout.LayoutParams(0,-2,1));
         android.widget.ImageButton close=Ui.icon(this,theme,"close","Close control center",theme.ink,this::closePanel); close.setId(R.id.close_panel); header.addView(close); root.addView(header);
         LinearLayout quick=Ui.row(this); quick.setPadding(0,Ui.dp(this,20),0,Ui.dp(this,12));
         LinearLayout.LayoutParams half=new LinearLayout.LayoutParams(0,Ui.dp(this,82),1); half.setMarginEnd(Ui.dp(this,6));
-        quick.addView(Ui.control(this,theme,"wifi","Wi-Fi","Connection settings",()->system(Settings.ACTION_WIFI_SETTINGS)),half);
+        quick.addView(Ui.roundControl(this,theme,"wifi","Wi-Fi","Connection settings",()->system(Settings.ACTION_WIFI_SETTINGS)),half);
         LinearLayout.LayoutParams other=new LinearLayout.LayoutParams(0,Ui.dp(this,82),1); other.setMarginStart(Ui.dp(this,6));
-        quick.addView(Ui.control(this,theme,"bluetooth","Bluetooth","Device settings",()->system(Settings.ACTION_BLUETOOTH_SETTINGS)),other); root.addView(quick);
+        quick.addView(Ui.roundControl(this,theme,"bluetooth","Bluetooth","Device settings",()->system(Settings.ACTION_BLUETOOTH_SETTINGS)),other); root.addView(quick);
         LinearLayout controls=Ui.row(this); controls.setPadding(0,0,0,Ui.dp(this,16));
-        LinearLayout shortcuts=Ui.column(this); shortcuts.addView(Ui.control(this,theme,"sun","Display","Screen settings",()->system(Settings.ACTION_DISPLAY_SETTINGS)),new LinearLayout.LayoutParams(-1,Ui.dp(this,78)));
-        View access=Ui.control(this,theme,"panel","Swipe access","Enable over apps",()-> {
+        LinearLayout shortcuts=Ui.column(this); shortcuts.addView(Ui.roundControl(this,theme,"sun","Display","Screen settings",()->system(Settings.ACTION_DISPLAY_SETTINGS)),new LinearLayout.LayoutParams(-1,Ui.dp(this,78)));
+        View access=Ui.roundControl(this,theme,"panel","Swipe access","Enable over apps",()-> {
             getSharedPreferences("mobile_home",MODE_PRIVATE).edit().putBoolean("edge_enabled",true).apply(); system(Settings.ACTION_ACCESSIBILITY_SETTINGS);
         }); LinearLayout.LayoutParams gap=new LinearLayout.LayoutParams(-1,Ui.dp(this,78)); gap.topMargin=Ui.dp(this,12); shortcuts.addView(access,gap);
         controls.addView(shortcuts,new LinearLayout.LayoutParams(0,Ui.dp(this,168),1.8f));
@@ -103,6 +104,7 @@ public final class NotificationPanelActivity extends Activity {
     }
     private View card(StatusBarNotification item,View recycled) {
         Notification n=item.getNotification(); LinearLayout card=recycled instanceof LinearLayout?(LinearLayout)recycled:Ui.column(this); card.removeAllViews(); card.setPadding(Ui.dp(this,16),Ui.dp(this,14),Ui.dp(this,16),Ui.dp(this,14)); card.setBackground(theme.panel(getResources().getDisplayMetrics().density,false));
+        ((android.graphics.drawable.GradientDrawable)card.getBackground()).setCornerRadius(Ui.dp(this,20));
         String app=item.getPackageName(); try { app=getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(app,0)).toString(); } catch(Exception gone) { /* Package can be removed. */ }
         LinearLayout top=Ui.row(this); ImageView icon=new ImageView(this);
         try { if(n.getSmallIcon()!=null) icon.setImageDrawable(n.getSmallIcon().loadDrawable(this)); } catch(RuntimeException gone) { /* Icon may no longer resolve. */ }
