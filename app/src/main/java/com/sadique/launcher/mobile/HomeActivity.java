@@ -4,6 +4,7 @@ import android.Manifest;
 import android.app.*;
 import android.app.role.RoleManager;
 import android.content.*;
+import android.content.pm.PackageManager;
 import android.location.*;
 import android.content.res.ColorStateList;
 import android.graphics.*;
