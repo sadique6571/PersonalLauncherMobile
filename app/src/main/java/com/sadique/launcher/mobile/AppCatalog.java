@@ -70,7 +70,7 @@ final class AppCatalog implements AutoCloseable {
             if(recycled instanceof LinearLayout) tile=(LinearLayout)recycled;
             else {
                 tile=Ui.column(context); tile.setGravity(Gravity.CENTER); tile.setPadding(Ui.dp(context,4),Ui.dp(context,10),Ui.dp(context,4),Ui.dp(context,6));
-                ImageView icon=new ImageView(context); icon.setScaleType(ImageView.ScaleType.FIT_CENTER); icon.setClipToOutline(true); android.graphics.drawable.GradientDrawable plate=new android.graphics.drawable.GradientDrawable(); plate.setColor(0x14ffffff); plate.setCornerRadius(Ui.dp(context,theme.radius)); icon.setBackground(plate);
+                ImageView icon=new ImageView(context); icon.setScaleType(ImageView.ScaleType.FIT_CENTER); icon.setClipToOutline(true); android.graphics.drawable.GradientDrawable plate=new android.graphics.drawable.GradientDrawable(); plate.setColor(0x14ffffff); plate.setCornerRadius(Ui.dp(context,theme.iconRadius())); icon.setBackground(plate);
                 icon.setPadding(Ui.dp(context,2),Ui.dp(context,2),Ui.dp(context,2),Ui.dp(context,2)); tile.addView(icon,new LinearLayout.LayoutParams(Ui.dp(context,58),Ui.dp(context,58)));
                 TextView label=Ui.text(context,theme,"",12); if(wallpaperLabels) { label.setTextColor(android.graphics.Color.WHITE); label.setShadowLayer(Ui.dp(context,3),0,Ui.dp(context,1),android.graphics.Color.BLACK); } label.setGravity(Gravity.CENTER); label.setMaxLines(2); label.setEllipsize(android.text.TextUtils.TruncateAt.END); label.setMinHeight(Ui.dp(context,36));
                 label.setVisibility(labels?View.VISIBLE:View.GONE); tile.addView(label,new LinearLayout.LayoutParams(-1,Ui.dp(context,36)));

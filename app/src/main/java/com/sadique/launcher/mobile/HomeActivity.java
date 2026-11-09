@@ -97,7 +97,7 @@ public final class HomeActivity extends Activity {
         body.addView(grid,new LinearLayout.LayoutParams(-1,0,1));
         dock=new GridView(this); dock.setNumColumns(4); dock.setAdapter(dockAdapter); dock.setBackgroundColor(Color.TRANSPARENT); dock.setVerticalScrollBarEnabled(false);
         dock.setOnItemClickListener((p,v,pos,id)->launch(dockAdapter.getItem(pos))); dock.setOnItemLongClickListener((p,v,pos,id)-> { appMenu(dockAdapter.getItem(pos),"dock"); return true; });
-        dockShell=Ui.row(this); dockShell.setPadding(Ui.dp(this,4),Ui.dp(this,2),Ui.dp(this,10),Ui.dp(this,2)); dockShell.setBackground(theme.panel(getResources().getDisplayMetrics().density,false));
+        dockShell=Ui.row(this); dockShell.setPadding(Ui.dp(this,4),Ui.dp(this,2),Ui.dp(this,10),Ui.dp(this,2)); dockShell.setBackground(theme.dockPanel(getResources().getDisplayMetrics().density));
         dockShell.addView(dock,new LinearLayout.LayoutParams(0,Ui.dp(this,84),1)); dockShell.addView(Ui.icon(this,theme,"apps","All apps",theme.ink,()->showDrawer(true)));
         body.addView(dockShell,new LinearLayout.LayoutParams(-1,Ui.dp(this,88))); dockShell.setVisibility(drawer?View.GONE:View.VISIBLE);
         View.OnTouchListener swipe=new View.OnTouchListener() {
