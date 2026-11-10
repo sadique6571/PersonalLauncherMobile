@@ -16,29 +16,32 @@ import android.widget.RemoteViews;
  * Works on any launcher (including the Vivo default launcher): it is a
  * plain AppWidget, so the launcher app never needs to be the default Home.
  *
- * The face is redrawn about ten times a second from a chained
- * AlarmManager tick (see {@link WidgetKit#scheduleWidgetTick}),
- * because AppWidgetProvider's own updatePeriodMillis cannot go below
+ * The face is redrawn once a second from a chained AlarmManager
+ * tick (see {@link WidgetKit#scheduleWidgetTick}), because
+ * AppWidgetProvider's own updatePeriodMillis cannot go below
  * 30 minutes. Every tick re-arms the next one, and onUpdate/onEnabled
- * re-arm it too, so a missed tick cannot stall the chain. Ten frames
- * a second make the second hand sweep smoothly (0.6 degrees a frame)
- * instead of stepping once a second.
+ * re-arm it too, so a missed tick cannot stall the chain. One tick
+ * a second makes the second hand step 6 degrees a tick — the 100 ms
+ * sweep was tried here and Vivo OriginOS batches those alarms into
+ * steps of about 5.5 seconds, so the widget stays on the one-second
+ * tick the user confirmed works on his phone. The smooth sweep lives
+ * only on the launcher's own Home clock, which redraws from a
+ * Handler, not from alarms.
  *
  * Battery note — please read before changing this: the tick is a
  * one-shot ELAPSED_REALTIME alarm (never wakes the device) and runs
  * only while at least one instance is placed; it stops when the last
- * instance is removed. Ten redraws a second cost ten times the old
- * one-second tick (one 480 px bitmap + one RemoteViews update per
- * frame), but only while the screen is on. When the phone is fully
- * asleep (Doze / deep sleep) Android defers non-wakeup alarms — no
- * API can tick a widget every second while the phone sleeps without
- * a new permission (SCHEDULE_EXACT_ALARM) or a foreground service,
- * and this widget uses neither. So in deep sleep the second hand
- * pauses and jumps to the correct time the moment the phone wakes;
- * that is an Android limit, not a bug. How smooth the sweep looks
- * also depends on alarm delivery — Android may batch or delay a
- * frame, and Vivo OriginOS restricts background alarms unless the
- * app is allowed in the battery settings (see README).
+ * instance is removed. One redraw a second (one 480 px bitmap + one
+ * RemoteViews update per tick), only while the screen is on. When the
+ * phone is fully asleep (Doze / deep sleep) Android defers
+ * non-wakeup alarms — no API can tick a widget every second while
+ * the phone sleeps without a new permission (SCHEDULE_EXACT_ALARM)
+ * or a foreground service, and this widget uses neither. So in deep
+ * sleep the second hand pauses and jumps to the correct time the
+ * moment the phone wakes; that is an Android limit, not a bug. How
+ * the tick is delivered also depends on alarm delivery — Android may
+ * batch or delay a tick, and Vivo OriginOS restricts background
+ * alarms unless the app is allowed in the battery settings (see README).
  */
 public class MechanicalClockWidget extends AppWidgetProvider {
     /** Internal one-second tick, sent only to this receiver. */

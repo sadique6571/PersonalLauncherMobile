@@ -340,11 +340,13 @@ final class WidgetKit {
 
     /**
      * Schedules the next one-shot tick for a clock widget, aligned to
-     * the next 100 ms frame boundary so drift never accumulates. The
-     * face redraws about ten times a second, so the second hand sweeps
-     * smoothly (0.6 degrees a frame) instead of stepping once a second
-     * — that step was visible on video. A one-shot {@link AlarmManager#set}
-     * (not setRepeating) is used on purpose: since API 19 setRepeating
+     * the next whole second so drift never accumulates. The face
+     * redraws once a second, so the second hand steps 6 degrees a
+     * tick — the 100 ms sweep was tried here and Vivo OriginOS
+     * batches those alarms into steps of about 5.5 seconds, so the
+     * widgets stay on the one-second tick the user confirmed works
+     * on his phone. A one-shot {@link AlarmManager#set} (not
+     * setRepeating) is used on purpose: since API 19 setRepeating
      * is inexact and Android batches it, and on Vivo OriginOS those
      * batches can stop entirely while the screen is on — that was the
      * bug where the hands froze and only jumped on a screen change.
@@ -355,23 +357,24 @@ final class WidgetKit {
      * instead: it is a protected broadcast that manifest receivers
      * never receive.
      *
-     * Battery note — please read before changing this: ten redraws a
-     * second cost ten times the old one-second tick (one 480 px bitmap
-     * + one RemoteViews update per frame, only while at least one
-     * clock widget instance is placed; it stops when the last one is
-     * removed). While the screen is on the sweep is visibly smooth.
-     * When the phone is fully asleep (Doze / deep sleep) Android
-     * defers non-wakeup alarms, so the second hand pauses and jumps
-     * to the correct time the moment the phone wakes; that is an
-     * Android limit, not a bug. How smooth the sweep looks also
-     * depends on alarm delivery — Android may batch or delay a frame,
-     * and Vivo OriginOS restricts background alarms unless the app is
-     * allowed in the battery settings (see README).
+     * Battery note — please read before changing this: one redraw a
+     * second (one 480 px bitmap + one RemoteViews update per tick,
+     * only while at least one clock widget instance is placed; it
+     * stops when the last one is removed). When the phone is fully
+     * asleep (Doze / deep sleep) Android defers non-wakeup alarms,
+     * so the second hand pauses and jumps to the correct time the
+     * moment the phone wakes; that is an Android limit, not a bug.
+     * How the tick is delivered also depends on alarm delivery —
+     * Android may batch or delay a tick, and Vivo OriginOS restricts
+     * background alarms unless the app is allowed in the battery
+     * settings (see README). The smooth sweep lives only on the
+     * launcher's own Home clock, which redraws from a Handler, not
+     * from alarms.
      */
     static void scheduleWidgetTick(Context context, Class<?> receiver, String action, int requestCode) {
         AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarms == null) return;
-        long delay = MechanicalClockFace.millisToNextFrame(System.currentTimeMillis());
+        long delay = MechanicalClockFace.millisToNextSecond(System.currentTimeMillis());
         alarms.set(AlarmManager.ELAPSED_REALTIME,
                 SystemClock.elapsedRealtime() + delay, tickIntent(context, receiver, action, requestCode));
     }
