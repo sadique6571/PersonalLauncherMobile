@@ -29,6 +29,7 @@ public final class HomeActivity extends Activity {
     private LinearLayout body,dockShell,widgetCard;
     private EditText search;
     private TextView clock,date,heading,weather,libraryButton;
+    private HomeAnalogClockView analogClock;
     private ScrollView libraryView;
     private boolean drawer,resumed,library;
     private Bitmap photo;
@@ -39,6 +40,8 @@ public final class HomeActivity extends Activity {
     private final ExecutorService images=Executors.newSingleThreadExecutor();
     private final Runnable iconRefresh=()-> { if(homeAdapter!=null) { homeAdapter.notifyDataSetChanged(); drawerAdapter.notifyDataSetChanged(); dockAdapter.notifyDataSetChanged(); } };
     private final Runnable tick=new Runnable() { public void run() { updateTime(); if(resumed) main.postDelayed(this,1000*(60-Calendar.getInstance().get(Calendar.SECOND))); } };
+    /** Home analog clock sweep: redraws the in-app clock about ten times a second (Handler, not alarms), so the second hand glides instead of stepping. Runs only while Home is resumed; stopped in onPause. */
+    private final Runnable sweep=new Runnable() { public void run() { if(analogClock!=null) analogClock.invalidate(); if(resumed) main.postDelayed(this,MechanicalClockFace.millisToNextFrame(System.currentTimeMillis())); } };
     private final BroadcastReceiver packages=new BroadcastReceiver() { public void onReceive(Context c,Intent i) { catalog.invalidate(); scan(); } };
 
     @Override public void onCreate(Bundle state) {
@@ -50,8 +53,8 @@ public final class HomeActivity extends Activity {
         build(); scan();
     }
     @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); setIntent(i); showDrawer(false); }
-    @Override protected void onResume() { super.onResume(); resumed=true; main.removeCallbacks(tick); tick.run(); if(!photoUri.equals(prefs.getString("wallpaper",""))) loadPhoto(); WidgetKit.refreshAll(this); }
-    @Override protected void onPause() { resumed=false; main.removeCallbacks(tick); super.onPause(); }
+    @Override protected void onResume() { super.onResume(); resumed=true; main.removeCallbacks(tick); tick.run(); main.removeCallbacks(sweep); sweep.run(); if(!photoUri.equals(prefs.getString("wallpaper",""))) loadPhoto(); WidgetKit.refreshAll(this); }
+    @Override protected void onPause() { resumed=false; main.removeCallbacks(tick); main.removeCallbacks(sweep); super.onPause(); }
     @Override protected void onDestroy() { unregisterReceiver(packages); main.removeCallbacksAndMessages(null); catalog.close(); images.shutdownNow(); super.onDestroy(); }
     // Only Android 9–12 use this fallback. Android 13+ uses the registered platform dispatcher above.
     @android.annotation.SuppressLint("GestureBackNavigation")
@@ -87,6 +90,7 @@ public final class HomeActivity extends Activity {
         android.widget.ImageButton panelButton=Ui.icon(this,theme,"panel","Open control center",Color.WHITE,this::panel); panelButton.setId(R.id.open_panel); bar.addView(panelButton);
         bar.addView(Ui.icon(this,theme,"settings","Launcher settings",Color.WHITE,this::settings)); body.addView(bar);
         widgetCard=Ui.column(this); widgetCard.setPadding(Ui.dp(this,16),Ui.dp(this,10),Ui.dp(this,16),Ui.dp(this,12)); widgetCard.setBackground(theme.panel(getResources().getDisplayMetrics().density,false)); body.addView(widgetCard,new LinearLayout.LayoutParams(-1,-2));
+        analogClock=new HomeAnalogClockView(this); LinearLayout.LayoutParams analogParams=new LinearLayout.LayoutParams(Ui.dp(this,168),Ui.dp(this,168)); analogParams.gravity=Gravity.CENTER_HORIZONTAL; analogParams.topMargin=Ui.dp(this,6); widgetCard.addView(analogClock,analogParams);
         clock=Ui.text(this,theme,"",82); clock.setSingleLine(true); clock.setHorizontallyScrolling(false); clock.setAutoSizeTextTypeUniformWithConfiguration(44,82,1,android.util.TypedValue.COMPLEX_UNIT_SP); clock.setTypeface(theme.font,theme.id==2||theme.id==6?Typeface.NORMAL:Typeface.BOLD); clock.setTextColor(Color.WHITE); clock.setShadowLayer(Ui.dp(this,6),0,Ui.dp(this,2),0xdd000000); clock.setPadding(0,Ui.dp(this,4),0,0); widgetCard.addView(clock);
         date=Ui.text(this,theme,"",16); date.setTextColor(Color.WHITE); date.setShadowLayer(5,0,2,Color.BLACK); widgetCard.addView(date);
         weather=Ui.text(this,theme,"",14); weather.setTextColor(Color.WHITE); weather.setShadowLayer(5,0,2,Color.BLACK); weather.setVisibility(View.GONE); weather.setOnClickListener(v -> open(new Intent(this,WeatherActivity.class))); widgetCard.addView(weather);
@@ -124,6 +128,7 @@ public final class HomeActivity extends Activity {
         };
         clock.setOnClickListener(v->showDrawer(true)); date.setOnClickListener(v->panel());
         clock.setOnTouchListener(swipe); date.setOnTouchListener(swipe);
+        analogClock.setOnClickListener(v->showDrawer(true)); analogClock.setOnTouchListener(swipe);
         library=false; updateTime(); showDrawer(drawer); refreshApps(); loadPhoto(); weather();
     }
     private void updateTime() { if(clock!=null) { String value=android.text.format.DateFormat.getTimeFormat(this).format(new Date()); android.text.SpannableString styled=new android.text.SpannableString(value);

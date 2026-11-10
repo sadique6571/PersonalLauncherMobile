@@ -16,10 +16,14 @@ import android.widget.RemoteViews;
  * Clock: the same clean face as the standalone Mechanical Clock widget
  * ({@link MechanicalClockFace}) — white dial straight on the wallpaper
  * (transparent background, no tile), black Arabic numerals and hands,
- * thin orange second hand that sweeps smoothly. It is redrawn about
- * ten times a second from a chained AlarmManager tick (see
- * {@link WidgetKit#scheduleWidgetTick}), so the second hand sweeps
- * (0.6 degrees a frame) instead of stepping once a second.
+ * thin orange second hand that steps 6 degrees a tick. It is redrawn
+ * once a second from a chained AlarmManager tick (see
+ * {@link WidgetKit#scheduleWidgetTick}) — the 100 ms sweep was tried
+ * here and Vivo OriginOS batches those alarms into steps of about
+ * 5.5 seconds, so the widget stays on the one-second tick the user
+ * confirmed works on his phone. The smooth sweep lives only on the
+ * launcher's own Home clock, which redraws from a Handler, not from
+ * alarms.
  *
  * Weather: the blue gradient panel shows the real place name ("54-2L",
  * "Okara", ... — free keyless reverse lookup, see {@link PlaceName};

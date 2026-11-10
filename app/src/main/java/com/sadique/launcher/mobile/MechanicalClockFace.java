@@ -27,17 +27,31 @@ import java.util.Calendar;
  * straight on the wallpaper, no tile). See {@link #draw(int, long,
  * boolean)}.
  *
- * The face is redrawn about ten times a second by the widget tick (see
- * {@link #millisToNextFrame}), so the second hand sweeps smoothly
- * instead of stepping once a second. Only the angle math is
+ * The launcher's own Home screen reuses the same face through
+ * {@link #drawOn} in {@link HomeAnalogClockView}: an in-app View
+ * redrawn by a Handler about ten times a second while Home is
+ * resumed, so its second hand sweeps smoothly. That path is not
+ * subject to the alarm batching that makes the AppWidget second hand
+ * step about every 5.5 seconds on the user's Vivo phone.
+ *
+ * The face is redrawn once a second by the widget tick (see
+ * {@link #millisToNextSecond}), so the second hand steps 6 degrees
+ * a second — the 100 ms sweep was tried on the widgets and Vivo
+ * OriginOS batches those alarms into steps of about 5.5 seconds, so
+ * the widgets stay on the one-second tick the user confirmed works
+ * on his phone. The smooth sweep lives only on the launcher's own
+ * Home clock, which redraws about ten times a second from a Handler
+ * (see {@link #millisToNextFrame}). Only the angle math is
  * unit-tested (it uses no Android classes); {@link #draw(int, long,
  * boolean)} needs a device or CI.
  */
 final class MechanicalClockFace {
     /** Bitmap edge in pixels; the widget ImageView scales it to fit. */
     static final int BITMAP_SIZE_PX = 480;
-    /** Redraw interval in milliseconds: 10 frames a second, a smooth sweep. */
+    /** Home clock redraw interval in milliseconds: 10 frames a second, a smooth sweep (Handler-driven; the widgets use TICK_MILLIS instead). */
     static final long FRAME_MILLIS = 100;
+    /** Widget tick interval in milliseconds: one tick a second. */
+    static final long TICK_MILLIS = 1000;
 
     private static final int TILE = 0xFF000000;
     private static final int DIAL = 0xFFFFFFFF;
@@ -81,14 +95,33 @@ final class MechanicalClockFace {
 
     /**
      * Milliseconds until the next 100 ms frame boundary, for aligning
-     * the tick. Used by the widget tick so every frame lands on a real
-     * frame boundary and drift never accumulates: 100 at an exact
-     * boundary, 50 halfway through a frame, 1 just before the next one.
-     * Ten frames a second make the second hand sweep (0.6 degrees a
-     * frame) instead of stepping once a second.
+     * the Home clock sweep loop. Used by the Home clock so every
+     * frame lands on a real frame boundary and drift never
+     * accumulates: 100 at an exact boundary, 50 halfway through a
+     * frame, 1 just before the next one. Ten frames a second make
+     * the second hand sweep (0.6 degrees a frame) instead of stepping
+     * once a second. The widgets do NOT use this — see
+     * {@link #millisToNextSecond}.
      */
     static long millisToNextFrame(long nowMillis) {
         return FRAME_MILLIS - (nowMillis % FRAME_MILLIS);
+    }
+
+    /**
+     * Milliseconds until the next whole second, for aligning the
+     * widget tick. Used by the widget tick so every tick lands on a
+     * real second boundary and drift never accumulates: 1000 at an
+     * exact boundary, 500 halfway through a second, 1 just before
+     * the next one. One tick a second makes the second hand step
+     * 6 degrees a second — the 100 ms sweep ({@link #millisToNextFrame})
+     * was tried on the widgets and Vivo OriginOS batches those alarms
+     * into steps of about 5.5 seconds, so the widgets stay on the
+     * one-second tick the user confirmed works on his phone. The
+     * smooth sweep lives only on the launcher's own Home clock,
+     * which redraws from a Handler, not from alarms.
+     */
+    static long millisToNextSecond(long nowMillis) {
+        return TICK_MILLIS - (nowMillis % TICK_MILLIS);
     }
 
     // ---- Drawing ----
@@ -110,7 +143,26 @@ final class MechanicalClockFace {
      */
     static Bitmap draw(int sizePx, long nowMillis, boolean blackTile) {
         Bitmap bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888);
-        Canvas canvas = new Canvas(bitmap);
+        drawOn(new Canvas(bitmap), sizePx, nowMillis, blackTile);
+        return bitmap;
+    }
+
+    /**
+     * Draws the whole watch face directly onto the given canvas, inside
+     * a {@code sizePx} square starting at the canvas origin. The
+     * launcher's Home clock View uses this so no Bitmap is allocated
+     * per frame; the widgets use {@link #draw(int, long, boolean)},
+     * which draws onto a fresh Bitmap through this same method.
+     *
+     * @param blackTile true draws the black rounded-square tile behind
+     *                  the dial (standalone Mechanical Clock widget,
+     *                  reference picture image-6); false leaves the
+     *                  background transparent so the white dial sits
+     *                  straight on the wallpaper (combined Clock +
+     *                  Weather widget and the Home clock, reference
+     *                  picture image-7).
+     */
+    static void drawOn(Canvas canvas, int sizePx, long nowMillis, boolean blackTile) {
         float cx = sizePx / 2f;
         float cy = sizePx / 2f;
         float s = sizePx / 480f; // all sizes below are in 480-space units
@@ -189,7 +241,6 @@ final class MechanicalClockFace {
         stroke.setColor(INK);
         stroke.setStrokeWidth(2.5f * s);
         canvas.drawCircle(cx, cy, 10 * s, stroke);
-        return bitmap;
     }
 
     /** Tapered hand pointing up at 0 degrees (12 o'clock). */
