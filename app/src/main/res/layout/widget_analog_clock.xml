@@ -1,0 +1,13 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:gravity="center"
+    android:background="@drawable/widget_clock_background"
+    android:padding="12dp">
+    <AnalogClock android:id="@+id/widget_clock"
+        android:layout_width="140dp" android:layout_height="140dp"
+        android:dial="@drawable/widget_clock_dial"
+        android:hand_hour="@drawable/widget_clock_hand_hour"
+        android:hand_minute="@drawable/widget_clock_hand_minute"
+        android:hand_second="@drawable/widget_clock_hand_second"/>
+</LinearLayout>

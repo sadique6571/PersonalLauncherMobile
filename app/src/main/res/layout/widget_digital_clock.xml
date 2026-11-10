@@ -1,0 +1,19 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical" android:gravity="center"
+    android:background="@drawable/widget_clock_background"
+    android:padding="12dp">
+    <TextClock android:id="@+id/widget_digital_clock"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:format12Hour="h:mm" android:format24Hour="HH:mm"
+        android:textSize="40sp" android:textStyle="bold"
+        android:textColor="#ffffff" android:shadowColor="#dd000000"
+        android:shadowDx="0" android:shadowDy="2" android:shadowRadius="5"/>
+    <TextView android:id="@+id/widget_date"
+        android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:layout_marginTop="4dp" android:text="Monday, 9 November"
+        android:textSize="13sp"
+        android:textColor="#ffffff" android:shadowColor="#dd000000"
+        android:shadowDx="0" android:shadowDy="2" android:shadowRadius="5"/>
+</LinearLayout>

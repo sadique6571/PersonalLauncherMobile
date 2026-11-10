@@ -4,4 +4,23 @@
     <string name="panel_title">Personal Panel</string>
     <string name="edge_swipe_name">Personal Panel edge swipe</string>
     <string name="edge_swipe_description">Optional top-right handle to open your themed panel over other apps. Does not read screen text or filter keys. Android controls enabling this service.</string>
+    <string name="widget_analog_clock_label">Analog Clock</string>
+    <string name="widget_analog_clock_description">Analog clock, iPhone style, for the home screen.</string>
+    <string name="widget_analog_clock_dark_label">Analog Clock Dark</string>
+    <string name="widget_analog_clock_dark_description">Analog clock with a dark face, iPhone style, for the home screen.</string>
+    <string name="widget_analog_clock_weather_label">Analog Clock + Weather</string>
+    <string name="widget_analog_clock_weather_description">Analog clock with date and live weather, iPhone style, for the home screen.</string>
+    <string name="widget_digital_clock_weather_label">Digital Clock + Weather</string>
+    <string name="widget_digital_clock_weather_description">Digital clock with date and live weather, iPhone style, for the home screen.</string>
+    <string name="widget_digital_clock_label">Digital Clock</string>
+    <string name="widget_digital_clock_description">Digital clock with date, iPhone style, for the home screen.</string>
+    <string name="widget_weather_label">Weather</string>
+    <string name="widget_weather_description">Live weather with today’s high and low, iPhone style, for the home screen.</string>
+    <string name="widget_analog_clock_date_label">Analog Clock + Date</string>
+    <string name="widget_analog_clock_date_description">Minimal analog clock with date, iPhone style, for the home screen.</string>
+    <string name="widget_big_clock_weather_label">Big Clock + Weather</string>
+    <string name="widget_big_clock_weather_description">Large analog and digital clock with date and live weather, iPhone style, for the home screen.</string>
+    <string name="weather_title">Weather</string>
+    <string name="weather_refresh">Refresh weather</string>
+    <string name="weather_unavailable">Weather unavailable — tap Refresh to try again.</string>
 </resources>

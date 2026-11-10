@@ -11,6 +11,7 @@
             <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
         </activity>
         <activity android:name=".NotificationPanelActivity" android:theme="@style/PanelTheme" android:exported="false" android:taskAffinity="" android:excludeFromRecents="true"/>
+        <activity android:name=".WeatherActivity" android:exported="false" android:label="@string/weather_title"/>
         <service android:name=".NotificationCollector" android:label="@string/notification_service" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="true">
             <intent-filter><action android:name="android.service.notification.NotificationListenerService"/></intent-filter>
         </service>
@@ -21,5 +22,37 @@
         <service android:name=".PanelTileService" android:icon="@drawable/ic_tile" android:label="@string/panel_title" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE"/></intent-filter>
         </service>
+        <receiver android:name=".AnalogClockWidget" android:exported="true" android:label="@string/widget_analog_clock_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_analog_clock"/>
+        </receiver>
+        <receiver android:name=".AnalogClockDarkWidget" android:exported="true" android:label="@string/widget_analog_clock_dark_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_analog_clock_dark"/>
+        </receiver>
+        <receiver android:name=".AnalogClockWeatherWidget" android:exported="true" android:label="@string/widget_analog_clock_weather_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_analog_clock_weather"/>
+        </receiver>
+        <receiver android:name=".DigitalClockWeatherWidget" android:exported="true" android:label="@string/widget_digital_clock_weather_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_digital_clock_weather"/>
+        </receiver>
+        <receiver android:name=".DigitalClockWidget" android:exported="true" android:label="@string/widget_digital_clock_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_digital_clock"/>
+        </receiver>
+        <receiver android:name=".WeatherWidget" android:exported="true" android:label="@string/widget_weather_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_weather"/>
+        </receiver>
+        <receiver android:name=".AnalogClockDateWidget" android:exported="true" android:label="@string/widget_analog_clock_date_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_analog_clock_date"/>
+        </receiver>
+        <receiver android:name=".BigClockWeatherWidget" android:exported="true" android:label="@string/widget_big_clock_weather_label">
+            <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE"/></intent-filter>
+            <meta-data android:name="android.appwidget.provider" android:resource="@xml/widget_big_clock_weather"/>
+        </receiver>
     </application>
 </manifest>
