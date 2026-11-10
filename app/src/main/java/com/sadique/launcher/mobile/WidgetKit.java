@@ -20,7 +20,7 @@ import java.net.URL;
 import java.util.Date;
 
 /**
- * Shared code for the home-screen widget pack (8 widgets). Every widget
+ * Shared code for the home-screen widget pack (9 widgets). Every widget
  * provider is a thin class that builds its own RemoteViews and uses this
  * helper for the date line, the tap actions, the cached weather and the
  * Open-Meteo fetch — the fetch logic lives here once, not once per widget.
@@ -228,5 +228,6 @@ final class WidgetKit {
         WeatherWidget.update(context, manager, manager.getAppWidgetIds(new ComponentName(context, WeatherWidget.class)));
         AnalogClockDateWidget.update(context, manager, manager.getAppWidgetIds(new ComponentName(context, AnalogClockDateWidget.class)));
         BigClockWeatherWidget.update(context, manager, manager.getAppWidgetIds(new ComponentName(context, BigClockWeatherWidget.class)));
+        MechanicalClockWidget.update(context, manager, manager.getAppWidgetIds(new ComponentName(context, MechanicalClockWidget.class)));
     }
 }
