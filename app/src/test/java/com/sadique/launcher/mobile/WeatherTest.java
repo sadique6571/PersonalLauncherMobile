@@ -35,6 +35,9 @@ public class WeatherTest {
         assertEquals("24°",Weather.temperature(DAILY));
         assertEquals("Partly cloudy",Weather.condition(DAILY));
         assertEquals("High 26° · Low 18°",Weather.highLow(DAILY));
+        assertEquals("H:26° L:18°",Weather.highLowShort(DAILY));
+        assertNull(Weather.highLowShort("{}"));
+        assertNull(Weather.highLowShort(null));
         assertNull(Weather.temperature("{}"));
         assertNull(Weather.condition("{}"));
         assertNull(Weather.highLow("{}"));

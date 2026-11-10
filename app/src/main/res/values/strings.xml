@@ -21,7 +21,9 @@
     <string name="widget_big_clock_weather_label">Big Clock + Weather</string>
     <string name="widget_big_clock_weather_description">Large analog and digital clock with date and live weather, iPhone style, for the home screen.</string>
     <string name="widget_mechanical_clock_label">Mechanical Clock</string>
-    <string name="widget_mechanical_clock_description">Mechanical skeleton watch with moving gears on the home screen.</string>
+    <string name="widget_mechanical_clock_description">Clean analog clock with a white dial, iPhone style, for the home screen.</string>
+    <string name="widget_clock_weather_label">Clock + Weather</string>
+    <string name="widget_clock_weather_description">Analog clock and live weather in one widget, iPhone style, for the home screen.</string>
     <string name="weather_title">Weather</string>
     <string name="weather_refresh">Refresh weather</string>
     <string name="weather_unavailable">Weather unavailable — tap Refresh to try again.</string>

@@ -78,6 +78,13 @@ final class Weather {
         return Math.round(low)+"°";
     }
 
+    /** "H:26° L:18°" (iPhone style), or null when there is no daily high/low. */
+    static String highLowShort(String json) {
+        String high=high(json), low=low(json);
+        if(high==null || low==null) return null;
+        return "H:"+high+" L:"+low;
+    }
+
     /** Current WMO weather code, or Integer.MIN_VALUE when unknown. */
     static int code(String json) {
         String c=currentSection(json); if(c==null) return Integer.MIN_VALUE;
