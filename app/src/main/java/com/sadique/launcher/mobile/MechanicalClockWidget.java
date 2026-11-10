@@ -10,35 +10,35 @@ import android.widget.RemoteViews;
 
 /**
  * 9. Mechanical Clock — small 2x2, clean analog face drawn in code
- * (white dial straight on the wallpaper, black numerals and hands,
- * thin orange second hand — iPhone clock style, like the reference
- * picture the user sent).
+ * (black rounded-square tile with a white dial inside it, black
+ * numerals and hands, thin orange second hand — iPhone clock style,
+ * like the reference picture the user sent, image-6).
  * Works on any launcher (including the Vivo default launcher): it is a
  * plain AppWidget, so the launcher app never needs to be the default Home.
  *
- * The face is redrawn once a second from a chained AlarmManager tick
- * (see {@link WidgetKit#scheduleWidgetTick}), because
- * AppWidgetProvider's own updatePeriodMillis cannot go below 30 minutes.
- * Every tick re-arms the next one, and onUpdate/onEnabled re-arm it too,
- * so a missed tick cannot stall the chain.
+ * The face is redrawn about ten times a second from a chained
+ * AlarmManager tick (see {@link WidgetKit#scheduleWidgetTick}),
+ * because AppWidgetProvider's own updatePeriodMillis cannot go below
+ * 30 minutes. Every tick re-arms the next one, and onUpdate/onEnabled
+ * re-arm it too, so a missed tick cannot stall the chain. Ten frames
+ * a second make the second hand sweep smoothly (0.6 degrees a frame)
+ * instead of stepping once a second.
  *
  * Battery note — please read before changing this: the tick is a
  * one-shot ELAPSED_REALTIME alarm (never wakes the device) and runs
  * only while at least one instance is placed; it stops when the last
- * instance is removed. While the screen is on the alarm fires within
- * about a second and the face always draws the real current time, so
- * all three hands move smoothly and stay correct. When the phone is
- * fully asleep (Doze / deep sleep) Android defers non-wakeup alarms —
- * no API can tick a widget every second while the phone sleeps without
- * a new permission (SCHEDULE_EXACT_ALARM) or a foreground service, and
- * this widget uses neither. So in deep sleep the second hand pauses
- * and jumps to the correct time the moment the phone wakes; that is
- * an Android limit, not a bug. (An earlier version used
- * setRepeating, which Android treats as inexact since API 19 and
- * batches aggressively — on Vivo OriginOS the ticks could stop
- * entirely while the screen was on, so the hands only jumped when the
- * screen changed. The chained one-shot alarm below is the most
- * reliable no-new-permission replacement.)
+ * instance is removed. Ten redraws a second cost ten times the old
+ * one-second tick (one 480 px bitmap + one RemoteViews update per
+ * frame), but only while the screen is on. When the phone is fully
+ * asleep (Doze / deep sleep) Android defers non-wakeup alarms — no
+ * API can tick a widget every second while the phone sleeps without
+ * a new permission (SCHEDULE_EXACT_ALARM) or a foreground service,
+ * and this widget uses neither. So in deep sleep the second hand
+ * pauses and jumps to the correct time the moment the phone wakes;
+ * that is an Android limit, not a bug. How smooth the sweep looks
+ * also depends on alarm delivery — Android may batch or delay a
+ * frame, and Vivo OriginOS restricts background alarms unless the
+ * app is allowed in the battery settings (see README).
  */
 public class MechanicalClockWidget extends AppWidgetProvider {
     /** Internal one-second tick, sent only to this receiver. */
@@ -82,7 +82,7 @@ public class MechanicalClockWidget extends AppWidgetProvider {
         if (ids == null || ids.length == 0) return;
         WidgetKit.scheduleWidgetTick(context, MechanicalClockWidget.class, ACTION_TICK, TICK_REQUEST_CODE);
         Bitmap face = MechanicalClockFace.draw(MechanicalClockFace.BITMAP_SIZE_PX,
-                System.currentTimeMillis());
+                System.currentTimeMillis(), true); // black tile, like reference picture image-6
         for (int id : ids) {
             RemoteViews views = new RemoteViews(context.getPackageName(),
                     R.layout.widget_mechanical_clock);

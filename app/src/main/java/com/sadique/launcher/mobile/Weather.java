@@ -14,9 +14,244 @@ import java.util.Locale;
  * fallback and the widget says so. Plain-string JSON parsing, no library.
  * Every field method returns null when its data is missing, so callers can
  * show "—" instead of leaving a blank.
+ *
+ * Google Weather API — wiring ready (the user asked for the Google
+ * source). Verified facts (Google Maps Platform docs, checked
+ * 2026-11-10): the Weather API lives at weather.googleapis.com and needs
+ * a Google Maps Platform API key with the Weather API enabled — there is
+ * NO keyless/free way to call it. A billing account must be attached to
+ * the Cloud project for the free tier: 10,000 calls a month free, then
+ * $0.15 per 1,000 calls (tiered down to $0.038 above 5M); default quota
+ * 6,000 queries a minute. A Maps Demo Key lets one Google account call
+ * it for prototyping WITHOUT billing info (daily limits, prototyping
+ * only, no card) — a trial with no card exists. The key has to be made
+ * by the user in the Cloud Console (browser sign-in, terms accepted);
+ * it must be restricted to the Weather API there. The key is typed by
+ * the user into Launcher settings ("Google Weather API key") and stored
+ * in SharedPreferences on the phone only — NEVER in code, NEVER in this
+ * public repo: a committed key gets stolen and its calls billed to the
+ * user. When a key is set, {@link WidgetKit#fetchWeather} uses Google
+ * (3 calls a refresh: current + hourly + daily); when the field is
+ * empty, Open-Meteo is used exactly as before, and any Google failure
+ * falls back to Open-Meteo too. The Google responses are mapped into
+ * the Open-Meteo JSON shape below ({@link #fromGoogle}), so every
+ * field method, widget and screen works unchanged.
  */
 final class Weather {
     static final double OKARA_LATITUDE=30.81,OKARA_LONGITUDE=73.45;
+
+    /** Google Weather API endpoints (REST, GET, API key in the query). Each call is one billable event. */
+    static String googleCurrentConditionsUrl(double latitude, double longitude, String key) {
+        return "https://weather.googleapis.com/v1/currentConditions:lookup?key=" + key
+                + "&location.latitude=" + latitude + "&location.longitude=" + longitude
+                + "&unitsSystem=METRIC";
+    }
+
+    /** 48 hours of hourly forecast (the app shows the next 12). */
+    static String googleForecastHoursUrl(double latitude, double longitude, String key) {
+        return "https://weather.googleapis.com/v1/forecast/hours:lookup?key=" + key
+                + "&location.latitude=" + latitude + "&location.longitude=" + longitude
+                + "&hours=48&unitsSystem=METRIC";
+    }
+
+    /** 7 days of daily forecast (sunrise/sunset included). */
+    static String googleForecastDaysUrl(double latitude, double longitude, String key) {
+        return "https://weather.googleapis.com/v1/forecast/days:lookup?key=" + key
+                + "&location.latitude=" + latitude + "&location.longitude=" + longitude
+                + "&days=7&unitsSystem=METRIC";
+    }
+
+    /** Google WeatherCondition.Type -> WMO weather code, or Integer.MIN_VALUE when unknown. */
+    static int googleCode(String type) {
+        if (type == null) return Integer.MIN_VALUE;
+        if (type.equals("CLEAR")) return 0;
+        if (type.equals("MOSTLY_CLEAR")) return 1;
+        if (type.equals("PARTLY_CLOUDY")) return 2;
+        if (type.equals("MOSTLY_CLOUDY") || type.equals("CLOUDY") || type.equals("WINDY")) return 3;
+        if (type.equals("WIND_AND_RAIN") || type.equals("LIGHT_RAIN_SHOWERS") || type.equals("CHANCE_OF_SHOWERS")
+                || type.equals("SCATTERED_SHOWERS") || type.equals("RAIN_SHOWERS")) return 80;
+        if (type.equals("HEAVY_RAIN_SHOWERS")) return 82;
+        if (type.equals("LIGHT_TO_MODERATE_RAIN") || type.equals("LIGHT_RAIN")) return 61;
+        if (type.equals("MODERATE_TO_HEAVY_RAIN") || type.equals("RAIN")) return 63;
+        if (type.equals("HEAVY_RAIN") || type.equals("RAIN_PERIODICALLY_HEAVY")) return 65;
+        if (type.equals("LIGHT_SNOW_SHOWERS") || type.equals("CHANCE_OF_SNOW_SHOWERS")
+                || type.equals("SCATTERED_SNOW_SHOWERS") || type.equals("LIGHT_TO_MODERATE_SNOW")
+                || type.equals("LIGHT_SNOW") || type.equals("BLOWING_SNOW") || type.equals("RAIN_AND_SNOW")) return 71;
+        if (type.equals("SNOW_SHOWERS") || type.equals("MODERATE_TO_HEAVY_SNOW") || type.equals("SNOW")) return 73;
+        if (type.equals("HEAVY_SNOW_SHOWERS") || type.equals("HEAVY_SNOW") || type.equals("SNOW_PERIODICALLY_HEAVY")) return 75;
+        if (type.equals("SNOWSTORM") || type.equals("HEAVY_SNOW_STORM") || type.equals("THUNDERSTORM")
+                || type.equals("THUNDERSHOWER") || type.equals("LIGHT_THUNDERSTORM_RAIN")
+                || type.equals("SCATTERED_THUNDERSTORMS") || type.equals("HEAVY_THUNDERSTORM")
+                || type.equals("HAIL") || type.equals("HAIL_SHOWERS")) return 95;
+        return Integer.MIN_VALUE;
+    }
+
+    /**
+     * Maps the three Google responses into the Open-Meteo JSON shape the
+     * rest of the app already parses (current / hourly / daily), so every
+     * field method, widget and screen works unchanged. Google times are
+     * RFC 3339 (UTC or with an offset); they are converted to
+     * Asia/Karachi local time, the timezone the whole app uses. Returns
+     * null when the current-conditions response has no usable reading
+     * (the caller then falls back to Open-Meteo). Pure string logic,
+     * unit-tested — no Android classes, no network.
+     */
+    static String fromGoogle(String currentJson, String hoursJson, String daysJson) {
+        if (currentJson == null) return null;
+        double temp = gDegrees(section(currentJson, "temperature"));
+        int code = googleCode(stringAfter(section(currentJson, "weatherCondition"), "\"type\":"));
+        if (Double.isNaN(temp) || code == Integer.MIN_VALUE) return null;
+        StringBuilder sb = new StringBuilder();
+        sb.append("{\"current\":{");
+        sb.append("\"time\":").append(q(gLocalTime(stringAfter(currentJson, "\"currentTime\":")))).append(",");
+        sb.append("\"temperature_2m\":").append(num(temp)).append(",");
+        sb.append("\"weather_code\":").append(code).append(",");
+        sb.append("\"relative_humidity_2m\":").append(num(numberAfter(currentJson, "\"relativeHumidity\":"))).append(",");
+        sb.append("\"apparent_temperature\":").append(num(gDegrees(section(currentJson, "feelsLikeTemperature")))).append(",");
+        sb.append("\"precipitation\":").append(num(gNumber(section(section(currentJson, "precipitation"), "qpf"), "\"quantity\":"))).append(",");
+        sb.append("\"wind_speed_10m\":").append(num(gNumber(section(section(currentJson, "wind"), "speed"), "\"value\":"))).append(",");
+        sb.append("\"wind_direction_10m\":").append(num(gNumber(section(section(currentJson, "wind"), "direction"), "\"degrees\":"))).append(",");
+        sb.append("\"pressure_msl\":").append(num(gNumber(section(currentJson, "airPressure"), "\"meanSeaLevelMillibars\":"))).append(",");
+        sb.append("\"cloud_cover\":").append(num(numberAfter(currentJson, "\"cloudCover\":")));
+        sb.append("},\"hourly\":{");
+        List<String> hours = gObjects(hoursJson, "forecastHours");
+        sb.append("\"time\":[");
+        for (int i = 0; i < hours.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(q(gLocalTime(stringAfter(section(hours.get(i), "interval"), "\"startTime\":"))));
+        }
+        sb.append("],\"temperature_2m\":[");
+        for (int i = 0; i < hours.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(num(gDegrees(section(hours.get(i), "temperature"))));
+        }
+        sb.append("],\"weather_code\":[");
+        for (int i = 0; i < hours.size(); i++) {
+            if (i > 0) sb.append(",");
+            int c = googleCode(stringAfter(section(hours.get(i), "weatherCondition"), "\"type\":"));
+            sb.append(c == Integer.MIN_VALUE ? 3 : c);
+        }
+        sb.append("],\"precipitation_probability\":[");
+        for (int i = 0; i < hours.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(num(gNumber(section(section(hours.get(i), "precipitation"), "probability"), "\"percent\":")));
+        }
+        sb.append("]},\"daily\":{");
+        List<String> days = gObjects(daysJson, "forecastDays");
+        sb.append("\"time\":[");
+        for (int i = 0; i < days.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(q(gLocalDate(section(days.get(i), "displayDate"))));
+        }
+        sb.append("],\"weather_code\":[");
+        for (int i = 0; i < days.size(); i++) {
+            if (i > 0) sb.append(",");
+            int c = googleCode(stringAfter(section(section(days.get(i), "daytimeForecast"), "weatherCondition"), "\"type\":"));
+            sb.append(c == Integer.MIN_VALUE ? 3 : c);
+        }
+        sb.append("],\"temperature_2m_max\":[");
+        for (int i = 0; i < days.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(num(gDegrees(section(days.get(i), "maxTemperature"))));
+        }
+        sb.append("],\"temperature_2m_min\":[");
+        for (int i = 0; i < days.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(num(gDegrees(section(days.get(i), "minTemperature"))));
+        }
+        sb.append("],\"sunrise\":[");
+        for (int i = 0; i < days.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(q(gLocalTime(stringAfter(section(days.get(i), "sunEvents"), "\"sunriseTime\":"))));
+        }
+        sb.append("],\"sunset\":[");
+        for (int i = 0; i < days.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(q(gLocalTime(stringAfter(section(days.get(i), "sunEvents"), "\"sunsetTime\":"))));
+        }
+        sb.append("],\"precipitation_probability_max\":[");
+        for (int i = 0; i < days.size(); i++) {
+            if (i > 0) sb.append(",");
+            double day = gNumber(section(section(section(days.get(i), "daytimeForecast"), "precipitation"), "probability"), "\"percent\":");
+            double night = gNumber(section(section(section(days.get(i), "nighttimeForecast"), "precipitation"), "probability"), "\"percent\":");
+            sb.append(num(Double.isNaN(day) ? night : Double.isNaN(night) ? day : Math.max(day, night)));
+        }
+        sb.append("],\"uv_index_max\":[");
+        for (int i = 0; i < days.size(); i++) {
+            if (i > 0) sb.append(",");
+            sb.append(num(numberAfter(section(days.get(i), "daytimeForecast"), "\"uvIndex\":")));
+        }
+        sb.append("]}}");
+        return sb.toString();
+    }
+
+    /** Degrees from a Google Temperature object {"degrees":24.0,...}, or NaN. */
+    private static double gDegrees(String tempObj) {
+        if (tempObj == null) return Double.NaN;
+        return numberAfter(tempObj, "\"degrees\":");
+    }
+
+    /** Number after "key": inside an object section, or NaN when absent. */
+    private static double gNumber(String obj, String key) {
+        if (obj == null) return Double.NaN;
+        return numberAfter(obj, key);
+    }
+
+    /** RFC 3339 time -> "yyyy-MM-ddTHH:mm" in Asia/Karachi, or null. */
+    static String gLocalTime(String iso) {
+        if (iso == null) return null;
+        try {
+            java.time.ZonedDateTime z = java.time.OffsetDateTime.parse(iso)
+                    .atZoneSameInstant(java.time.ZoneId.of("Asia/Karachi"));
+            return String.format(Locale.ROOT, "%04d-%02d-%02dT%02d:%02d",
+                    z.getYear(), z.getMonthValue(), z.getDayOfMonth(), z.getHour(), z.getMinute());
+        } catch (Exception bad) { return null; }
+    }
+
+    /** Google displayDate {"year":2026,"month":11,"day":10} -> "2026-11-10", or null. */
+    static String gLocalDate(String dateObj) {
+        if (dateObj == null) return null;
+        int y = numberAfterInt(dateObj, "\"year\":");
+        int m = numberAfterInt(dateObj, "\"month\":");
+        int d = numberAfterInt(dateObj, "\"day\":");
+        if (y == Integer.MIN_VALUE || m == Integer.MIN_VALUE || d == Integer.MIN_VALUE) return null;
+        return String.format(Locale.ROOT, "%04d-%02d-%02d", y, m, d);
+    }
+
+    /** Top-level objects of "key":[{...},{...}], or an empty list. */
+    static List<String> gObjects(String json, String key) {
+        List<String> out = new ArrayList<>();
+        if (json == null) return out;
+        int at = json.indexOf("\"" + key + "\":[");
+        if (at < 0) return out;
+        int i = json.indexOf('[', at) + 1;
+        while (i < json.length()) {
+            while (i < json.length() && (json.charAt(i) == ' ' || json.charAt(i) == ',' || json.charAt(i) == '\n'
+                    || json.charAt(i) == '\r' || json.charAt(i) == '\t')) i++;
+            if (i >= json.length() || json.charAt(i) == ']') break;
+            if (json.charAt(i) != '{') break;
+            int depth = 0, start = i;
+            while (i < json.length()) {
+                char c = json.charAt(i);
+                if (c == '{') depth++;
+                else if (c == '}') { depth--; if (depth == 0) { i++; break; } }
+                i++;
+            }
+            out.add(json.substring(start, i));
+        }
+        return out;
+    }
+
+    /** JSON string literal ("value") or null. */
+    private static String q(String value) {
+        return value == null ? "null" : "\"" + value + "\"";
+    }
+
+    /** JSON number or null when NaN. */
+    private static String num(double value) {
+        return Double.isNaN(value) ? "null" : Double.toString(value);
+    }
+
     private Weather() { }
 
     static String url(double latitude,double longitude) {

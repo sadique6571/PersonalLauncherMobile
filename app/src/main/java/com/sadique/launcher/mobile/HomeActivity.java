@@ -143,52 +143,34 @@ public final class HomeActivity extends Activity {
         libraryButton.setText(open?"All apps":"App Library");
         if(open) refreshApps();
     }
-    /** Home widget weather: current coarse location once per refresh, Okara fallback. Coordinates are never stored. */
+    /** Home widget weather line: cached reading, then one shared fetch (WidgetKit — Google when a key is set, Open-Meteo otherwise; Okara fallback). Coordinates are never stored. */
     private void weather() {
         String cached=prefs.getString("weather_text","");
         if(!cached.isEmpty() && weather!=null) { weather.setText(cached); weather.setVisibility(View.VISIBLE); }
-        if(checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)!=PackageManager.PERMISSION_GRANTED) {
-            if(!prefs.getBoolean("location_asked",false)) { prefs.edit().putBoolean("location_asked",true).apply(); requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},45); }
-            else fetchWeather(Weather.OKARA_LATITUDE,Weather.OKARA_LONGITUDE,"Okara · fallback");
+        if(checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)!=PackageManager.PERMISSION_GRANTED
+                && !prefs.getBoolean("location_asked",false)) {
+            prefs.edit().putBoolean("location_asked",true).apply();
+            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},45);
             return;
         }
-        fetchWeatherWithLocation();
+        fetchWeatherLine();
     }
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] grants) {
         super.onRequestPermissionsResult(request,permissions,grants);
-        if(request==45) fetchWeatherWithLocation();
+        if(request==45) fetchWeatherLine();
     }
-    @android.annotation.SuppressLint("MissingPermission")
-    private void fetchWeatherWithLocation() {
-        double latitude=Weather.OKARA_LATITUDE,longitude=Weather.OKARA_LONGITUDE; String label="Okara · fallback";
-        try {
-            LocationManager locations=getSystemService(LocationManager.class);
-            Location last=null;
-            if(locations!=null) { last=locations.getLastKnownLocation(LocationManager.NETWORK_PROVIDER); if(last==null) last=locations.getLastKnownLocation(LocationManager.GPS_PROVIDER); }
-            if(last!=null) { latitude=last.getLatitude(); longitude=last.getLongitude(); label="Current location"; }
-        } catch(SecurityException denied) { /* No location: Okara fallback below. */ }
-        fetchWeather(latitude,longitude,label);
-    }
-    private void fetchWeather(double latitude,double longitude,String label) {
-        String url=Weather.url(latitude,longitude);
-        images.execute(()-> {
-            String summary=null;
-            try {
-                java.net.HttpURLConnection connection=(java.net.HttpURLConnection)new java.net.URL(url).openConnection();
-                connection.setConnectTimeout(5000); connection.setReadTimeout(5000); connection.setRequestMethod("GET");
-                if(connection.getResponseCode()==200) {
-                    java.io.ByteArrayOutputStream out=new java.io.ByteArrayOutputStream(); byte[] block=new byte[4096]; int length;
-                    try(java.io.InputStream in=connection.getInputStream()) { while((length=in.read(block))!=-1) { if(out.size()+length>65536) break; out.write(block,0,length); } }
-                    summary=Weather.summary(out.toString("UTF-8"),label);
-                }
-                connection.disconnect();
-            } catch(Exception offline) { /* Keep the cached reading; no weather line if there is none. */ }
-            String shown=summary;
-            main.post(()-> {
-                if(isDestroyed() || weather==null) return;
-                if(shown!=null) { prefs.edit().putString("weather_text",shown).apply(); weather.setText(shown); weather.setVisibility(View.VISIBLE); }
-            });
-        });
+    private void fetchWeatherLine() {
+        // Same 30-minute gate as the widgets, so the Home line does not
+        // re-fetch (and, with a Google key, re-spend 3 API calls) on
+        // every resume. WidgetKit.fetchWeather does the location lookup,
+        // the place-name lookup and the Okara fallback itself.
+        if (WidgetKit.cachedJson(this) != null && System.currentTimeMillis() - WidgetKit.lastWeatherFetchAt(this) < WidgetKit.UPDATE_PERIOD_MILLIS) return;
+        WidgetKit.noteWeatherFetchAttempt(this);
+        WidgetKit.fetchWeather(this, (summary, highLow, json) -> main.post(() -> {
+            if (isDestroyed() || weather == null) return;
+            String shown = summary != null ? summary : prefs.getString("weather_text", "");
+            if (shown != null && !shown.isEmpty()) { weather.setText(shown); weather.setVisibility(View.VISIBLE); }
+        }));
     }
     private void launch(AppCatalog.Entry app) {
         try { ComponentName name=ComponentName.unflattenFromString(app.key); if(name!=null) startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(name).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)); }
@@ -225,6 +207,22 @@ public final class HomeActivity extends Activity {
         TextView note=Ui.text(this,theme,"Notification access reads notifications for your panel. Content stays in memory on this phone; no server or analytics. Android still owns its permission screens and system shade.",14); note.setPadding(0,Ui.dp(this,10),0,Ui.dp(this,10)); options.addView(note);
         options.addView(Ui.button(this,theme,"Weather location",()->open(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+getPackageName())))));
         TextView weatherInfo=Ui.text(this,theme,"Weather uses your current coarse location, once per refresh. Deny it in Android settings and the widget falls back to Okara. Coordinates are never stored.",13); weatherInfo.setPadding(0,Ui.dp(this,10),0,Ui.dp(this,14)); options.addView(weatherInfo);
+        options.addView(Ui.text(this,theme,"Google Weather API key",16));
+        EditText keyField=new EditText(this);
+        keyField.setInputType(InputType.TYPE_CLASS_TEXT|InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        keyField.setHint("Paste your Google Weather API key");
+        keyField.setText(WidgetKit.googleApiKey(this));
+        keyField.setTextColor(theme.ink);
+        options.addView(keyField);
+        TextView keyInfo=Ui.text(this,theme,"Optional. Paste your own Google Weather API key (made in your Google Cloud Console, Weather API enabled) to use Google weather instead of Open-Meteo. The key stays on this phone only — it is never uploaded or saved in the app. Leave it empty to keep Open-Meteo. Each refresh uses 3 Google calls. A standard key needs billing attached in the Cloud project (10,000 calls a month free); without billing the calls fail and the app keeps Open-Meteo. A Maps Demo Key works without billing, for a trial.",13); keyInfo.setPadding(0,Ui.dp(this,10),0,Ui.dp(this,14)); options.addView(keyInfo);
+        options.addView(Ui.button(this,theme,"Save Google Weather API key",()-> {
+            String key=keyField.getText().toString().trim();
+            WidgetKit.setGoogleApiKey(this,key);
+            Ui.toast(this,key.isEmpty()?"Removed — weather will use Open-Meteo":"Saved — weather will use Google");
+            sheet[0].dismiss();
+            WidgetKit.noteWeatherFetchAttempt(this);
+            WidgetKit.fetchWeather(this,(summary,highLow,json)->runOnUiThread(()-> { WidgetKit.refreshAll(this); weather(); }));
+        }));
         options.addView(Ui.button(this,theme,"Import saved settings (.xml)",()-> { sheet[0].dismiss(); startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("*/*").addCategory(Intent.CATEGORY_OPENABLE),44); }));
         options.addView(Ui.button(this,theme,"Choose photo wallpaper",()-> { sheet[0].dismiss(); startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("image/*").addCategory(Intent.CATEGORY_OPENABLE),42); }));
         options.addView(Ui.button(this,theme,"Use theme wallpaper",()-> { prefs.edit().remove("wallpaper").apply(); sheet[0].dismiss(); build(); }));

@@ -32,7 +32,12 @@ import java.util.Date;
  * fallback, cached reading offline. A weather line is never blank: without
  * any reading it says "Weather unavailable" and each missing detail shows
  * "—". Coordinates go only to Open-Meteo for that one request and are
- * never stored.
+ * never stored, except the coarse ~2 km grid reference kept on the
+ * device for the place-name cache (see {@link PlaceName}) — no
+ * coordinates are ever uploaded or logged anywhere else. The place
+ * name shown on the widgets ("54-2L", "Okara", ...) comes from a free
+ * keyless reverse lookup (Nominatim / OpenStreetMap); when no name is
+ * found the label stays "Current location".
  */
 final class WidgetKit {
     static final int UPDATE_PERIOD_MILLIS = 1800000;
@@ -43,6 +48,24 @@ final class WidgetKit {
     static final String WEATHER_LABEL_KEY = "weather_label";
     /** When the last weather fetch was attempted (millis); gates re-fetches. */
     static final String WEATHER_FETCHED_AT_KEY = "weather_fetched_at";
+    /** The user's own Google Weather API key, typed in Launcher settings — phone only, never in the repo. */
+    static final String GOOGLE_API_KEY_PREF = "google_weather_api_key";
+
+    /** The user's Google Weather API key, or "" when none is set (Open-Meteo is used then). */
+    static String googleApiKey(Context context) {
+        String key = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(GOOGLE_API_KEY_PREF, "");
+        return key == null ? "" : key;
+    }
+
+    /** Saves the Google Weather API key (trimmed; empty removes it). Phone only — never uploaded. */
+    static void setGoogleApiKey(Context context, String key) {
+        String trimmed = key == null ? "" : key.trim();
+        android.content.SharedPreferences.Editor edit =
+                context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
+        if (trimmed.isEmpty()) edit.remove(GOOGLE_API_KEY_PREF);
+        else edit.putString(GOOGLE_API_KEY_PREF, trimmed);
+        edit.apply();
+    }
 
     private WidgetKit() { }
 
@@ -73,7 +96,7 @@ final class WidgetKit {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(WEATHER_JSON_KEY, null);
     }
 
-    /** Label for the cached reading: "Current location" or "Okara · fallback". */
+    /** Label for the cached reading: the real place name ("54-2L"), "Current location", or "Okara · fallback". */
     static String cachedLabel(Context context) {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(WEATHER_LABEL_KEY, "Okara · fallback");
     }
@@ -200,7 +223,10 @@ final class WidgetKit {
         void onResult(String summary, String highLow, String json);
     }
 
-    /** Fetch the full detail feed on a background thread; the callback runs on that thread. */
+    /** Fetch the full detail feed on a background thread; the callback runs on that thread.
+     *  Data source is Open-Meteo by default; when the user set a Google
+     *  Weather API key in Launcher settings, Google is tried first and
+     *  Open-Meteo is the fallback (see {@link Weather#fromGoogle}). */
     @SuppressLint("MissingPermission")
     static void fetchWeather(Context context, FetchCallback callback) {
         new Thread(() -> {
@@ -217,18 +243,39 @@ final class WidgetKit {
                     }
                     if (last != null) { latitude = last.getLatitude(); longitude = last.getLongitude(); label = "Current location"; }
                 }
-                HttpURLConnection connection = (HttpURLConnection) new URL(Weather.detailUrl(latitude, longitude)).openConnection();
-                connection.setConnectTimeout(5000); connection.setReadTimeout(5000); connection.setRequestMethod("GET");
-                if (connection.getResponseCode() == 200) {
-                    ByteArrayOutputStream out = new ByteArrayOutputStream(); byte[] block = new byte[4096]; int length;
-                    try (InputStream in = connection.getInputStream()) {
-                        while ((length = in.read(block)) != -1) { if (out.size() + length > 65536) break; out.write(block, 0, length); }
-                    }
-                    json = out.toString("UTF-8");
-                    summary = Weather.summary(json, label);
-                    highLow = Weather.highLow(json);
+                // Real place name for the weather panel ("54-2L", "Okara", ...):
+                // one free keyless reverse lookup, cached — see PlaceName.
+                // No name found (or no network) keeps "Current location".
+                if ("Current location".equals(label)) {
+                    String place = PlaceName.resolve(context, latitude, longitude);
+                    if (place != null && !place.isEmpty()) label = place;
                 }
-                connection.disconnect();
+                // Google Weather API when the user set a key in Launcher
+                // settings (3 calls a refresh: current + hourly + daily);
+                // any failure falls through to Open-Meteo below, so the
+                // widget never goes blank because of a bad key or quota.
+                String key = googleApiKey(context);
+                if (key != null && !key.isEmpty()) {
+                    json = fetchGoogleJson(latitude, longitude, key);
+                    if (json != null) {
+                        summary = Weather.summary(json, label);
+                        highLow = Weather.highLow(json);
+                    }
+                }
+                if (json == null) {
+                    HttpURLConnection connection = (HttpURLConnection) new URL(Weather.detailUrl(latitude, longitude)).openConnection();
+                    connection.setConnectTimeout(5000); connection.setReadTimeout(5000); connection.setRequestMethod("GET");
+                    if (connection.getResponseCode() == 200) {
+                        ByteArrayOutputStream out = new ByteArrayOutputStream(); byte[] block = new byte[4096]; int length;
+                        try (InputStream in = connection.getInputStream()) {
+                            while ((length = in.read(block)) != -1) { if (out.size() + length > 65536) break; out.write(block, 0, length); }
+                        }
+                        json = out.toString("UTF-8");
+                        summary = Weather.summary(json, label);
+                        highLow = Weather.highLow(json);
+                    }
+                    connection.disconnect();
+                }
             } catch (Exception offline) { /* Cached readings stay; the line never goes blank. */ }
             if (summary != null) {
                 context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
@@ -236,6 +283,44 @@ final class WidgetKit {
             }
             callback.onResult(summary, highLow, json);
         }).start();
+    }
+
+    /**
+     * Google Weather API fetch: current conditions + 48 hourly + 7 daily,
+     * mapped into the Open-Meteo JSON shape by {@link Weather#fromGoogle}.
+     * Returns null on any failure (bad key, quota spent, offline) — the
+     * caller then falls back to Open-Meteo. Runs on the caller's thread.
+     */
+    private static String fetchGoogleJson(double latitude, double longitude, String key) {
+        try {
+            String current = get(Weather.googleCurrentConditionsUrl(latitude, longitude, key));
+            if (current == null) return null;
+            String hours = get(Weather.googleForecastHoursUrl(latitude, longitude, key));
+            String days = get(Weather.googleForecastDaysUrl(latitude, longitude, key));
+            return Weather.fromGoogle(current, hours, days);
+        } catch (Exception offline) { return null; }
+    }
+
+    /** One HTTP GET, response body as UTF-8 (capped at 256 KB), or null on any failure. */
+    private static String get(String url) {
+        try {
+            HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(5000);
+            connection.setRequestMethod("GET");
+            if (connection.getResponseCode() != 200) { connection.disconnect(); return null; }
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] block = new byte[4096];
+            int length;
+            try (InputStream in = connection.getInputStream()) {
+                while ((length = in.read(block)) != -1) {
+                    if (out.size() + length > 262144) break;
+                    out.write(block, 0, length);
+                }
+            }
+            connection.disconnect();
+            return out.toString("UTF-8");
+        } catch (Exception offline) { return null; }
     }
 
     /** Refresh every installed widget of the pack (called when the app resumes, e.g. after granting location). */
@@ -254,23 +339,39 @@ final class WidgetKit {
     }
 
     /**
-     * Schedules the next one-shot tick for a per-second widget, aligned to
-     * the next whole second so drift never accumulates. A one-shot
-     * {@link AlarmManager#set} (not setRepeating) is used on purpose:
-     * since API 19 setRepeating is inexact and Android batches it, and on
-     * Vivo OriginOS those batches can stop entirely while the screen is
-     * on — that was the bug where the hands froze and only jumped on a
-     * screen change. Each tick is re-armed from onReceive/update/onEnabled,
-     * so the chain keeps running while the screen is on. No exact-alarm
-     * API is used, so no SCHEDULE_EXACT_ALARM permission is needed and no
+     * Schedules the next one-shot tick for a clock widget, aligned to
+     * the next 100 ms frame boundary so drift never accumulates. The
+     * face redraws about ten times a second, so the second hand sweeps
+     * smoothly (0.6 degrees a frame) instead of stepping once a second
+     * — that step was visible on video. A one-shot {@link AlarmManager#set}
+     * (not setRepeating) is used on purpose: since API 19 setRepeating
+     * is inexact and Android batches it, and on Vivo OriginOS those
+     * batches can stop entirely while the screen is on — that was the
+     * bug where the hands froze and only jumped on a screen change.
+     * Each tick is re-armed from onReceive/update/onEnabled, so the
+     * chain keeps running while the screen is on. No exact-alarm API
+     * is used, so no SCHEDULE_EXACT_ALARM permission is needed and no
      * foreground service is created. ACTION_SCREEN_ON cannot be used
-     * instead: it is a protected broadcast that manifest receivers never
-     * receive.
+     * instead: it is a protected broadcast that manifest receivers
+     * never receive.
+     *
+     * Battery note — please read before changing this: ten redraws a
+     * second cost ten times the old one-second tick (one 480 px bitmap
+     * + one RemoteViews update per frame, only while at least one
+     * clock widget instance is placed; it stops when the last one is
+     * removed). While the screen is on the sweep is visibly smooth.
+     * When the phone is fully asleep (Doze / deep sleep) Android
+     * defers non-wakeup alarms, so the second hand pauses and jumps
+     * to the correct time the moment the phone wakes; that is an
+     * Android limit, not a bug. How smooth the sweep looks also
+     * depends on alarm delivery — Android may batch or delay a frame,
+     * and Vivo OriginOS restricts background alarms unless the app is
+     * allowed in the battery settings (see README).
      */
     static void scheduleWidgetTick(Context context, Class<?> receiver, String action, int requestCode) {
         AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarms == null) return;
-        long delay = MechanicalClockFace.millisToNextSecond(System.currentTimeMillis());
+        long delay = MechanicalClockFace.millisToNextFrame(System.currentTimeMillis());
         alarms.set(AlarmManager.ELAPSED_REALTIME,
                 SystemClock.elapsedRealtime() + delay, tickIntent(context, receiver, action, requestCode));
     }

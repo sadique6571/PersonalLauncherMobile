@@ -5,32 +5,44 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import java.util.Calendar;
 
 /**
  * 9. Mechanical Clock — clean analog face drawn in code on a Bitmap.
  *
- * The look follows the reference picture the user sent (an iPhone-style
- * clock widget on the home screen): a plain white dial straight on the
- * wallpaper — transparent background, no tile — black Arabic numerals
- * 1-12, black minute ticks, thick black hour/minute hands and a thin
- * orange second hand. No gears, no skeleton, no date window, no jewels
- * — the dial is completely clean, exactly like the picture. Everything
- * is drawn with Canvas (no image assets), so the hands show the real
- * time and the face scales cleanly.
+ * The look follows the reference pictures the user sent (an iPhone-style
+ * clock widget on the home screen): a plain white dial, black Arabic
+ * numerals 1-12, black minute ticks, thick black hour/minute hands and
+ * a thin orange second hand. No gears, no skeleton, no date window, no
+ * jewels — the dial is completely clean, exactly like the pictures.
+ * Everything is drawn with Canvas (no image assets), so the hands show
+ * the real time and the face scales cleanly.
  *
- * The face is redrawn once a second by {@link MechanicalClockWidget}.
- * Only the angle math is unit-tested (it uses no Android classes);
- * {@link #draw(int, long)} needs a device or CI.
+ * Two styles: the standalone Mechanical Clock widget uses the black
+ * rounded-square tile (reference picture image-6: black tile, white
+ * dial inside it); the combined Clock + Weather widget uses the
+ * transparent background (reference picture image-7: white dial
+ * straight on the wallpaper, no tile). See {@link #draw(int, long,
+ * boolean)}.
+ *
+ * The face is redrawn about ten times a second by the widget tick (see
+ * {@link #millisToNextFrame}), so the second hand sweeps smoothly
+ * instead of stepping once a second. Only the angle math is
+ * unit-tested (it uses no Android classes); {@link #draw(int, long,
+ * boolean)} needs a device or CI.
  */
 final class MechanicalClockFace {
     /** Bitmap edge in pixels; the widget ImageView scales it to fit. */
     static final int BITMAP_SIZE_PX = 480;
+    /** Redraw interval in milliseconds: 10 frames a second, a smooth sweep. */
+    static final long FRAME_MILLIS = 100;
 
+    private static final int TILE = 0xFF000000;
     private static final int DIAL = 0xFFFFFFFF;
     private static final int INK = 0xFF000000;
-    /** iOS orange for the second hand, like the reference picture. */
+    /** iOS orange for the second hand, like the reference pictures. */
     private static final int ORANGE = 0xFFFF9500;
 
     private static final String[] NUMERALS = {
@@ -68,19 +80,35 @@ final class MechanicalClockFace {
     }
 
     /**
-     * Milliseconds until the next whole second, for aligning the tick.
-     * Used by {@link MechanicalClockWidget} so every tick lands on a real
-     * second boundary and drift never accumulates: 1000 at an exact
-     * boundary, 500 halfway through a second, 1 just before the next one.
+     * Milliseconds until the next 100 ms frame boundary, for aligning
+     * the tick. Used by the widget tick so every frame lands on a real
+     * frame boundary and drift never accumulates: 100 at an exact
+     * boundary, 50 halfway through a frame, 1 just before the next one.
+     * Ten frames a second make the second hand sweep (0.6 degrees a
+     * frame) instead of stepping once a second.
      */
-    static long millisToNextSecond(long nowMillis) {
-        return 1000 - (nowMillis % 1000);
+    static long millisToNextFrame(long nowMillis) {
+        return FRAME_MILLIS - (nowMillis % FRAME_MILLIS);
     }
 
     // ---- Drawing ----
 
-    /** Draws the whole watch face for the given moment. */
+    /** Draws the whole watch face for the given moment (transparent background, no tile). */
     static Bitmap draw(int sizePx, long nowMillis) {
+        return draw(sizePx, nowMillis, false);
+    }
+
+    /**
+     * Draws the whole watch face for the given moment.
+     *
+     * @param blackTile true draws the black rounded-square tile behind
+     *                  the dial (standalone Mechanical Clock widget,
+     *                  reference picture image-6); false leaves the
+     *                  background transparent so the white dial sits
+     *                  straight on the wallpaper (combined Clock +
+     *                  Weather widget, reference picture image-7).
+     */
+    static Bitmap draw(int sizePx, long nowMillis, boolean blackTile) {
         Bitmap bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888);
         Canvas canvas = new Canvas(bitmap);
         float cx = sizePx / 2f;
@@ -95,9 +123,19 @@ final class MechanicalClockFace {
         double hour = hourAngle(nowMillis);
         double second = secondAngle(nowMillis);
 
-        // Plain white dial, straight on the wallpaper (transparent
-        // background, no tile — like the picture), with a soft shadow so
-        // it lifts off a light wallpaper.
+        // Black rounded-square tile (standalone widget only), like the
+        // reference picture image-6: black tile, white dial inside it.
+        // Otherwise the background stays transparent and the white dial
+        // sits straight on the wallpaper (reference picture image-7).
+        if (blackTile) {
+            fill.setColor(TILE);
+            fill.setShadowLayer(16 * s, 0, 6 * s, 0x66000000);
+            RectF tile = new RectF(10 * s, 10 * s, 470 * s, 470 * s);
+            canvas.drawRoundRect(tile, 88 * s, 88 * s, fill);
+            fill.setShadowLayer(0, 0, 0, 0);
+        }
+
+        // Plain white dial, with a soft shadow so it lifts off a light wallpaper.
         fill.setColor(DIAL);
         fill.setShadowLayer(14 * s, 0, 5 * s, 0x55000000);
         canvas.drawCircle(cx, cy, 200 * s, fill);
