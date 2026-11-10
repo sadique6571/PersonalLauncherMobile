@@ -28,17 +28,19 @@ public class MechanicalClockFaceTest {
     }
 
     @Test public void secondHandIsSmoothNotStepped() {
-        // 250 ms apart the second hand must move 1.5 degrees, never jump.
+        // 100 ms apart the second hand must move 0.6 degrees, never jump —
+        // ten frames a second make it sweep instead of stepping once a second.
         long t1 = time(10, 9, 30, 0);
-        long t2 = time(10, 9, 30, 250);
-        assertEquals(1.5, MechanicalClockFace.secondAngle(t2)
+        long t2 = time(10, 9, 30, 100);
+        assertEquals(0.6, MechanicalClockFace.secondAngle(t2)
                 - MechanicalClockFace.secondAngle(t1), 0.001);
     }
 
-    @Test public void tickAlignsToNextWholeSecond() {
-        assertEquals(1000, MechanicalClockFace.millisToNextSecond(1_000));
-        assertEquals(500, MechanicalClockFace.millisToNextSecond(1_500));
-        assertEquals(1, MechanicalClockFace.millisToNextSecond(1_999));
-        assertEquals(1000, MechanicalClockFace.millisToNextSecond(2_000));
+    @Test public void tickAlignsToNextFrame() {
+        assertEquals(100, MechanicalClockFace.millisToNextFrame(1_000));
+        assertEquals(50, MechanicalClockFace.millisToNextFrame(1_050));
+        assertEquals(1, MechanicalClockFace.millisToNextFrame(1_099));
+        assertEquals(100, MechanicalClockFace.millisToNextFrame(2_000));
+        assertEquals(MechanicalClockFace.FRAME_MILLIS, 100);
     }
 }

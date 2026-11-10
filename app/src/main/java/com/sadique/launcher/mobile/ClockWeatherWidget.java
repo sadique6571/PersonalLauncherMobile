@@ -14,24 +14,24 @@ import android.widget.RemoteViews;
  * widget — like the reference picture the user sent (image-7).
  *
  * Clock: the same clean face as the standalone Mechanical Clock widget
- * ({@link MechanicalClockFace}) — white dial straight on the wallpaper,
- * black Arabic numerals and hands, thin orange second hand that sweeps
- * smoothly. It is redrawn once a second from a chained AlarmManager
- * tick (see {@link WidgetKit#scheduleWidgetTick}).
+ * ({@link MechanicalClockFace}) — white dial straight on the wallpaper
+ * (transparent background, no tile), black Arabic numerals and hands,
+ * thin orange second hand that sweeps smoothly. It is redrawn about
+ * ten times a second from a chained AlarmManager tick (see
+ * {@link WidgetKit#scheduleWidgetTick}), so the second hand sweeps
+ * (0.6 degrees a frame) instead of stepping once a second.
  *
- * Weather: the blue gradient panel shows the location label, the big
- * current temperature, the condition icon + text, today's high/low
+ * Weather: the blue gradient panel shows the real place name ("54-2L",
+ * "Okara", ... — free keyless reverse lookup, see {@link PlaceName};
+ * "Current location" when no name is found), the big current
+ * temperature, the condition icon + text, today's high/low
  * ("H:26° L:18°") and the sunset/sunrise line — sunrise before sunrise,
  * today's sunset during the day, tomorrow's sunrise after sunset, all
  * 12-hour AM/PM (see {@link WidgetKit#fillSun}). The weather comes from
  * the cached Open-Meteo reading; it is fetched only when the cache is
- * older than 30 minutes (or missing), never once a second — the clock
+ * older than 30 minutes (or missing), never on every tick — the clock
  * ticks, the weather waits. Tap the clock to open the app, tap the
  * weather panel to open the full Weather screen.
- *
- * Location name: Open-Meteo returns no place name, so the panel shows
- * the same label as the other weather widgets — "Current location" when
- * the user allowed coarse location, "Okara · fallback" otherwise.
  */
 public class ClockWeatherWidget extends AppWidgetProvider {
     /** Internal one-second tick, sent only to this receiver. */

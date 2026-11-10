@@ -19,9 +19,12 @@ import java.util.List;
  * condition and icon, a details grid, the sunrise/sunset path, the next
  * 12 hours and the 7-day forecast. Data is the same Open-Meteo feed the
  * widgets use (free, no key): current coarse location, Okara fallback,
- * cached offline. Tapping a weather widget opens this screen; the weather
- * line on Home opens it too. Refresh reloads the feed; with no data at
- * all the screen says "Weather unavailable" instead of staying blank.
+ * cached offline. The location line shows the real place name ("54-2L",
+ * "Okara", ... — free keyless reverse lookup, see {@link PlaceName});
+ * with no name it says "Current location". Tapping a weather widget opens
+ * this screen; the weather line on Home opens it too. Refresh reloads the
+ * feed; with no data at all the screen says "Weather unavailable" instead
+ * of staying blank.
  */
 public class WeatherActivity extends Activity {
     private static final int TEXT = Color.WHITE;
