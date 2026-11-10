@@ -2,6 +2,7 @@ package com.sadique.launcher.mobile;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
@@ -12,6 +13,7 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
+import android.os.SystemClock;
 import android.widget.RemoteViews;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -20,7 +22,7 @@ import java.net.URL;
 import java.util.Date;
 
 /**
- * Shared code for the home-screen widget pack (9 widgets). Every widget
+ * Shared code for the home-screen widget pack (10 widgets). Every widget
  * provider is a thin class that builds its own RemoteViews and uses this
  * helper for the date line, the tap actions, the cached weather and the
  * Open-Meteo fetch — the fetch logic lives here once, not once per widget.
@@ -39,6 +41,8 @@ final class WidgetKit {
     static final String WEATHER_KEY = "weather_text";
     static final String WEATHER_JSON_KEY = "weather_json";
     static final String WEATHER_LABEL_KEY = "weather_label";
+    /** When the last weather fetch was attempted (millis); gates re-fetches. */
+    static final String WEATHER_FETCHED_AT_KEY = "weather_fetched_at";
 
     private WidgetKit() { }
 
@@ -72,6 +76,17 @@ final class WidgetKit {
     /** Label for the cached reading: "Current location" or "Okara · fallback". */
     static String cachedLabel(Context context) {
         return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(WEATHER_LABEL_KEY, "Okara · fallback");
+    }
+
+    /** When the last weather fetch was attempted, or 0 when never. */
+    static long lastWeatherFetchAt(Context context) {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong(WEATHER_FETCHED_AT_KEY, 0);
+    }
+
+    /** Record a weather fetch attempt (success or not) so the next one waits out the interval. */
+    static void noteWeatherFetchAttempt(Context context) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putLong(WEATHER_FETCHED_AT_KEY, System.currentTimeMillis()).apply();
     }
 
     /** Tap a clock widget to open the app, where the location permission is first requested. */
@@ -153,6 +168,12 @@ final class WidgetKit {
         return e != null && !e.sunrise ? R.drawable.ic_sunset : R.drawable.ic_sunrise;
     }
 
+    /** "H:26° L:18°" (iPhone style), or "H:— L:—" with no data. */
+    static String highLowShortLine(String json) {
+        String v = json == null ? null : Weather.highLowShort(json);
+        return v == null ? "H:— L:—" : v;
+    }
+
     /** Fill the sun row (icon + line) of a weather widget; never blank. */
     static void fillSun(Context context, RemoteViews views, String json) {
         views.setImageViewResource(R.id.widget_sun_icon, sunIcon(json));
@@ -229,5 +250,42 @@ final class WidgetKit {
         AnalogClockDateWidget.update(context, manager, manager.getAppWidgetIds(new ComponentName(context, AnalogClockDateWidget.class)));
         BigClockWeatherWidget.update(context, manager, manager.getAppWidgetIds(new ComponentName(context, BigClockWeatherWidget.class)));
         MechanicalClockWidget.update(context, manager, manager.getAppWidgetIds(new ComponentName(context, MechanicalClockWidget.class)));
+        ClockWeatherWidget.update(context, manager, manager.getAppWidgetIds(new ComponentName(context, ClockWeatherWidget.class)));
+    }
+
+    /**
+     * Schedules the next one-shot tick for a per-second widget, aligned to
+     * the next whole second so drift never accumulates. A one-shot
+     * {@link AlarmManager#set} (not setRepeating) is used on purpose:
+     * since API 19 setRepeating is inexact and Android batches it, and on
+     * Vivo OriginOS those batches can stop entirely while the screen is
+     * on — that was the bug where the hands froze and only jumped on a
+     * screen change. Each tick is re-armed from onReceive/update/onEnabled,
+     * so the chain keeps running while the screen is on. No exact-alarm
+     * API is used, so no SCHEDULE_EXACT_ALARM permission is needed and no
+     * foreground service is created. ACTION_SCREEN_ON cannot be used
+     * instead: it is a protected broadcast that manifest receivers never
+     * receive.
+     */
+    static void scheduleWidgetTick(Context context, Class<?> receiver, String action, int requestCode) {
+        AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (alarms == null) return;
+        long delay = MechanicalClockFace.millisToNextSecond(System.currentTimeMillis());
+        alarms.set(AlarmManager.ELAPSED_REALTIME,
+                SystemClock.elapsedRealtime() + delay, tickIntent(context, receiver, action, requestCode));
+    }
+
+    /** Cancels a widget's tick chain (when its last instance is removed). */
+    static void cancelWidgetTick(Context context, Class<?> receiver, String action, int requestCode) {
+        AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        if (alarms == null) return;
+        alarms.cancel(tickIntent(context, receiver, action, requestCode));
+    }
+
+    private static PendingIntent tickIntent(Context context, Class<?> receiver, String action, int requestCode) {
+        Intent tick = new Intent(context, receiver);
+        tick.setAction(action);
+        return PendingIntent.getBroadcast(context, requestCode, tick,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 }

@@ -1,37 +1,49 @@
 package com.sadique.launcher.mobile;
 
-import android.app.AlarmManager;
-import android.app.PendingIntent;
 import android.appwidget.AppWidgetManager;
 import android.appwidget.AppWidgetProvider;
 import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.os.SystemClock;
 import android.widget.RemoteViews;
 
 /**
- * 9. Mechanical Clock — small 2x2, skeleton watch face drawn in code.
+ * 9. Mechanical Clock — small 2x2, clean analog face drawn in code
+ * (white dial straight on the wallpaper, black numerals and hands,
+ * thin orange second hand — iPhone clock style, like the reference
+ * picture the user sent).
  * Works on any launcher (including the Vivo default launcher): it is a
  * plain AppWidget, so the launcher app never needs to be the default Home.
  *
- * The face is redrawn once a second from an AlarmManager tick, because
+ * The face is redrawn once a second from a chained AlarmManager tick
+ * (see {@link WidgetKit#scheduleWidgetTick}), because
  * AppWidgetProvider's own updatePeriodMillis cannot go below 30 minutes.
+ * Every tick re-arms the next one, and onUpdate/onEnabled re-arm it too,
+ * so a missed tick cannot stall the chain.
  *
- * Battery note: the tick is ELAPSED_REALTIME (never wakes the device)
- * and runs only while at least one instance is placed; it stops when the
- * last instance is removed. Each tick renders one 480 px bitmap, which
- * costs about the same as a normal clock widget refresh. In Doze the
- * system may batch or delay the ticks, so the second hand can pause
- * while the phone is idle — that is the trade-off for not needing the
- * SCHEDULE_EXACT_ALARM permission (no new permission is requested).
+ * Battery note — please read before changing this: the tick is a
+ * one-shot ELAPSED_REALTIME alarm (never wakes the device) and runs
+ * only while at least one instance is placed; it stops when the last
+ * instance is removed. While the screen is on the alarm fires within
+ * about a second and the face always draws the real current time, so
+ * all three hands move smoothly and stay correct. When the phone is
+ * fully asleep (Doze / deep sleep) Android defers non-wakeup alarms —
+ * no API can tick a widget every second while the phone sleeps without
+ * a new permission (SCHEDULE_EXACT_ALARM) or a foreground service, and
+ * this widget uses neither. So in deep sleep the second hand pauses
+ * and jumps to the correct time the moment the phone wakes; that is
+ * an Android limit, not a bug. (An earlier version used
+ * setRepeating, which Android treats as inexact since API 19 and
+ * batches aggressively — on Vivo OriginOS the ticks could stop
+ * entirely while the screen was on, so the hands only jumped when the
+ * screen changed. The chained one-shot alarm below is the most
+ * reliable no-new-permission replacement.)
  */
 public class MechanicalClockWidget extends AppWidgetProvider {
     /** Internal one-second tick, sent only to this receiver. */
     static final String ACTION_TICK =
             "com.sadique.launcher.mobile.action.MECHANICAL_CLOCK_TICK";
-    private static final long TICK_MILLIS = 1000L;
     private static final int TICK_REQUEST_CODE = 9001;
 
     @Override public void onUpdate(Context context, AppWidgetManager manager, int[] ids) {
@@ -39,17 +51,17 @@ public class MechanicalClockWidget extends AppWidgetProvider {
     }
 
     @Override public void onEnabled(Context context) {
-        startTick(context);
+        WidgetKit.scheduleWidgetTick(context, MechanicalClockWidget.class, ACTION_TICK, TICK_REQUEST_CODE);
     }
 
     @Override public void onDisabled(Context context) {
-        stopTick(context);
+        WidgetKit.cancelWidgetTick(context, MechanicalClockWidget.class, ACTION_TICK, TICK_REQUEST_CODE);
     }
 
     @Override public void onDeleted(Context context, int[] ids) {
         AppWidgetManager manager = AppWidgetManager.getInstance(context);
         int[] remaining = manager.getAppWidgetIds(new ComponentName(context, MechanicalClockWidget.class));
-        if (remaining.length == 0) stopTick(context);
+        if (remaining.length == 0) WidgetKit.cancelWidgetTick(context, MechanicalClockWidget.class, ACTION_TICK, TICK_REQUEST_CODE);
     }
 
     @Override public void onReceive(Context context, Intent intent) {
@@ -65,10 +77,10 @@ public class MechanicalClockWidget extends AppWidgetProvider {
         super.onReceive(context, intent);
     }
 
-    /** Redraws every instance for the current time and keeps the tick running. */
+    /** Redraws every instance for the current time and re-arms the next tick. */
     static void update(Context context, AppWidgetManager manager, int[] ids) {
         if (ids == null || ids.length == 0) return;
-        startTick(context);
+        WidgetKit.scheduleWidgetTick(context, MechanicalClockWidget.class, ACTION_TICK, TICK_REQUEST_CODE);
         Bitmap face = MechanicalClockFace.draw(MechanicalClockFace.BITMAP_SIZE_PX,
                 System.currentTimeMillis());
         for (int id : ids) {
@@ -79,25 +91,5 @@ public class MechanicalClockWidget extends AppWidgetProvider {
                     WidgetKit.tapToOpenApp(context, id));
             manager.updateAppWidget(id, views);
         }
-    }
-
-    private static void startTick(Context context) {
-        AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        if (alarms == null) return;
-        alarms.setRepeating(AlarmManager.ELAPSED_REALTIME,
-                SystemClock.elapsedRealtime() + TICK_MILLIS, TICK_MILLIS, tickIntent(context));
-    }
-
-    private static void stopTick(Context context) {
-        AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        if (alarms == null) return;
-        alarms.cancel(tickIntent(context));
-    }
-
-    private static PendingIntent tickIntent(Context context) {
-        Intent tick = new Intent(context, MechanicalClockWidget.class);
-        tick.setAction(ACTION_TICK);
-        return PendingIntent.getBroadcast(context, TICK_REQUEST_CODE, tick,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
     }
 }
