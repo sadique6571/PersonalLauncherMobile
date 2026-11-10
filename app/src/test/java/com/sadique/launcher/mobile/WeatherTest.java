@@ -136,7 +136,7 @@ public class WeatherTest {
         assertEquals("26°",days.get(0).high);
         assertEquals("18°",days.get(0).low);
         assertEquals("40%",days.get(0).rain);
-        assertEquals("Mon",days.get(1).name);
+        assertEquals("Tue",days.get(1).name);
         assertEquals("Wed",days.get(2).name);
     }
     @Test public void conditionIconMapsCodes() {
