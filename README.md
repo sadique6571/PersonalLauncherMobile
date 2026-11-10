@@ -45,7 +45,7 @@ Intended first test device reports Android 16, OriginOS 6, 1080×2400, gesture n
 
 ## Remaining mobile work
 
-This is the first installable foundation, not feature parity with the TV launcher or OriginOS. The built-in Home widget (clock/date/weather), the home-screen widget pack (8 widgets) and the label-initial App Library are done; folders, drag-and-drop, additional Home pages, Daily Bing, production key configuration and in-app GitHub auto-updates remain to be implemented. Hosting other apps' widgets (AppWidgetHost) is future work — the Home widget is built-in only. Phone-specific shapes and glass rendering will be refined after on-device feedback; several themes currently share the same card geometry. Global replacement of Android system UI is not promised.
+This is the first installable foundation, not feature parity with the TV launcher or OriginOS. The built-in Home widget (clock/date/weather), the home-screen widget pack (9 widgets) and the label-initial App Library are done; folders, drag-and-drop, additional Home pages, Daily Bing, production key configuration and in-app GitHub auto-updates remain to be implemented. Hosting other apps' widgets (AppWidgetHost) is future work — the Home widget is built-in only. Phone-specific shapes and glass rendering will be refined after on-device feedback; several themes currently share the same card geometry. Global replacement of Android system UI is not promised.
 
 ## Panel return-path regression
 
@@ -72,10 +72,10 @@ What this build adds, and what it deliberately does not:
 
 ## Home-screen widget pack
 
-Eight real Android home-screen widgets (one shared helper, `WidgetKit`, with one provider, layout and appwidget-provider XML per widget), so they can be placed on the phone's **default launcher** — Vivo Home / OriginOS — without setting this app as the default Home:
+Nine real Android home-screen widgets (one shared helper, `WidgetKit`, with one provider, layout and appwidget-provider XML per widget), so they can be placed on the phone's **default launcher** — Vivo Home / OriginOS — without setting this app as the default Home:
 
 - **Add them:** on the default Home screen, long-press an empty area → Widgets → find the widget by name → drag it onto the Home screen. Every widget can be resized (minimum 110dp).
-- **The 8 widgets:**
+- **The 9 widgets:**
   1. **Analog Clock** — small 2x2, light face, glass card.
   2. **Analog Clock Dark** — small 2x2, dark navy face with white hands.
   3. **Analog Clock + Weather** — medium 4x2: analog clock on the left, date and live weather on the right.
@@ -84,6 +84,7 @@ Eight real Android home-screen widgets (one shared helper, `WidgetKit`, with one
   6. **Weather** — medium 4x2: big current temperature, condition and today's high/low, no clock.
   7. **Analog Clock + Date** — small 2x2: minimal dial (hour and minute hands only) with the date below.
   8. **Big Clock + Weather** — large 4x4: big analog clock, digital time, date and live weather.
+  9. **Mechanical Clock** — small 2x2: skeleton watch face drawn in code — steel + gold gears that turn with the real time, balance wheel, escape wheel and ruby jewels, with a date window at 3 o'clock. Redrawn once a second by an AlarmManager tick (no wake-ups, stops when the last instance is removed).
 - **Clocks:** analog hands are drawn by Android from the system time (white dial with tick marks, dark hour/minute hands, orange second hand — all drawn from scratch in this repo); digital digits use a self-updating TextClock. The hands and digits always show the real time.
 - **Weather (detailed, not just a temperature line):** the same Open-Meteo source as the built-in widget (free, no key), current coarse location once per refresh, Okara (30.81, 73.45) as the labelled fallback ("Okara · fallback"). Offline it shows the last cached reading; with no reading at all it says "Weather unavailable" — the line is never blank or hidden. What each weather widget shows depends on its size: the Weather widget and the Big Clock + Weather widget show the current temperature, condition, high/low, feels-like, humidity, wind speed + compass direction, rain chance and the sun line; the Big widget also shows pressure and cloud cover. The Analog Clock + Weather and Digital Clock + Weather widgets show the temperature, condition, high/low, feels-like, wind and the sun line in compact 2-column rows. A missing value shows "—", never a blank.
 - **Sunrise/sunset line:** every weather widget has a sun line with its own sunrise/sunset icon. Before sunrise it shows today's sunrise ("Sunrise 6:23 AM"); during the day it shows today's sunset ("Sunset 5:20 PM"); after sunset it shows tomorrow's sunrise ("Sunrise tomorrow · 6:23 AM"). Times are 12-hour AM/PM. With no sun data the line says "Sunrise/Sunset —".
