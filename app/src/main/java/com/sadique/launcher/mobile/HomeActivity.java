@@ -50,7 +50,7 @@ public final class HomeActivity extends Activity {
         build(); scan();
     }
     @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); setIntent(i); showDrawer(false); }
-    @Override protected void onResume() { super.onResume(); resumed=true; main.removeCallbacks(tick); tick.run(); if(!photoUri.equals(prefs.getString("wallpaper",""))) loadPhoto(); }
+    @Override protected void onResume() { super.onResume(); resumed=true; main.removeCallbacks(tick); tick.run(); if(!photoUri.equals(prefs.getString("wallpaper",""))) loadPhoto(); WidgetKit.refreshAll(this); }
     @Override protected void onPause() { resumed=false; main.removeCallbacks(tick); super.onPause(); }
     @Override protected void onDestroy() { unregisterReceiver(packages); main.removeCallbacksAndMessages(null); catalog.close(); images.shutdownNow(); super.onDestroy(); }
     // Only Android 9–12 use this fallback. Android 13+ uses the registered platform dispatcher above.
@@ -89,7 +89,7 @@ public final class HomeActivity extends Activity {
         widgetCard=Ui.column(this); widgetCard.setPadding(Ui.dp(this,16),Ui.dp(this,10),Ui.dp(this,16),Ui.dp(this,12)); widgetCard.setBackground(theme.panel(getResources().getDisplayMetrics().density,false)); body.addView(widgetCard,new LinearLayout.LayoutParams(-1,-2));
         clock=Ui.text(this,theme,"",82); clock.setSingleLine(true); clock.setHorizontallyScrolling(false); clock.setAutoSizeTextTypeUniformWithConfiguration(44,82,1,android.util.TypedValue.COMPLEX_UNIT_SP); clock.setTypeface(theme.font,theme.id==2||theme.id==6?Typeface.NORMAL:Typeface.BOLD); clock.setTextColor(Color.WHITE); clock.setShadowLayer(Ui.dp(this,6),0,Ui.dp(this,2),0xdd000000); clock.setPadding(0,Ui.dp(this,4),0,0); widgetCard.addView(clock);
         date=Ui.text(this,theme,"",16); date.setTextColor(Color.WHITE); date.setShadowLayer(5,0,2,Color.BLACK); widgetCard.addView(date);
-        weather=Ui.text(this,theme,"",14); weather.setTextColor(Color.WHITE); weather.setShadowLayer(5,0,2,Color.BLACK); weather.setVisibility(View.GONE); widgetCard.addView(weather);
+        weather=Ui.text(this,theme,"",14); weather.setTextColor(Color.WHITE); weather.setShadowLayer(5,0,2,Color.BLACK); weather.setVisibility(View.GONE); weather.setOnClickListener(v -> open(new Intent(this,WeatherActivity.class))); widgetCard.addView(weather);
         LinearLayout tools=Ui.row(this); tools.setPadding(0,Ui.dp(this,20),0,Ui.dp(this,8));
         heading=Ui.text(this,theme,"Home",16); heading.setTextColor(Color.WHITE); heading.setShadowLayer(4,0,1,Color.BLACK); tools.addView(heading,new LinearLayout.LayoutParams(0,-2,1));
         tools.addView(Ui.icon(this,theme,"search","Search apps",Color.WHITE,()-> { showDrawer(true); search.requestFocus(); ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(search,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT); })); tools.addView(Ui.icon(this,theme,"apps","All apps",Color.WHITE,()->showDrawer(!drawer))); body.addView(tools);
