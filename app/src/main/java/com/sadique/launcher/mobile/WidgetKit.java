@@ -13,7 +13,6 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
-import android.os.SystemClock;
 import android.widget.RemoteViews;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -338,58 +337,16 @@ final class WidgetKit {
         ClockWeatherWidget.update(context, manager, manager.getAppWidgetIds(new ComponentName(context, ClockWeatherWidget.class)));
     }
 
-    /**
-     * Schedules the next one-shot tick for a clock widget, aligned to
-     * the next whole second so drift never accumulates. The face
-     * redraws once a second, so the second hand steps 6 degrees a
-     * tick — the 100 ms sweep was tried here and Vivo OriginOS
-     * batches those alarms into steps of about 5.5 seconds, so the
-     * widgets stay on the one-second tick the user confirmed works
-     * on his phone. A one-shot {@link AlarmManager#set} (not
-     * setRepeating) is used on purpose: since API 19 setRepeating
-     * is inexact and Android batches it, and on Vivo OriginOS those
-     * batches can stop entirely while the screen is on — that was the
-     * bug where the hands froze and only jumped on a screen change.
-     * Each tick is re-armed from onReceive/update/onEnabled, so the
-     * chain keeps running while the screen is on. No exact-alarm API
-     * is used, so no SCHEDULE_EXACT_ALARM permission is needed and no
-     * foreground service is created. ACTION_SCREEN_ON cannot be used
-     * instead: it is a protected broadcast that manifest receivers
-     * never receive.
-     *
-     * Battery note — please read before changing this: one redraw a
-     * second (one 480 px bitmap + one RemoteViews update per tick,
-     * only while at least one clock widget instance is placed; it
-     * stops when the last one is removed). When the phone is fully
-     * asleep (Doze / deep sleep) Android defers non-wakeup alarms,
-     * so the second hand pauses and jumps to the correct time the
-     * moment the phone wakes; that is an Android limit, not a bug.
-     * How the tick is delivered also depends on alarm delivery —
-     * Android may batch or delay a tick, and Vivo OriginOS restricts
-     * background alarms unless the app is allowed in the battery
-     * settings (see README). The smooth sweep lives only on the
-     * launcher's own Home clock, which redraws from a Handler, not
-     * from alarms.
-     */
-    static void scheduleWidgetTick(Context context, Class<?> receiver, String action, int requestCode) {
-        AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-        if (alarms == null) return;
-        long delay = MechanicalClockFace.millisToNextSecond(System.currentTimeMillis());
-        alarms.set(AlarmManager.ELAPSED_REALTIME,
-                SystemClock.elapsedRealtime() + delay, tickIntent(context, receiver, action, requestCode));
-    }
-
-    /** Cancels a widget's tick chain (when its last instance is removed). */
+    /** Cancels any clock alarm left by an older installed build. */
     static void cancelWidgetTick(Context context, Class<?> receiver, String action, int requestCode) {
         AlarmManager alarms = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         if (alarms == null) return;
-        alarms.cancel(tickIntent(context, receiver, action, requestCode));
-    }
-
-    private static PendingIntent tickIntent(Context context, Class<?> receiver, String action, int requestCode) {
-        Intent tick = new Intent(context, receiver);
-        tick.setAction(action);
-        return PendingIntent.getBroadcast(context, requestCode, tick,
-                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+        Intent tick = new Intent(context, receiver).setAction(action);
+        PendingIntent pending = PendingIntent.getBroadcast(context, requestCode, tick,
+                PendingIntent.FLAG_NO_CREATE | PendingIntent.FLAG_IMMUTABLE);
+        if (pending != null) {
+            alarms.cancel(pending);
+            pending.cancel();
+        }
     }
 }

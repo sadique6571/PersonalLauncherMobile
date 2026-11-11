@@ -43,22 +43,4 @@ public class MechanicalClockFaceTest {
         assertEquals(100, MechanicalClockFace.millisToNextFrame(2_000));
         assertEquals(MechanicalClockFace.FRAME_MILLIS, 100);
     }
-
-    @Test public void widgetTickAlignsToNextSecond() {
-        assertEquals(1000, MechanicalClockFace.millisToNextSecond(1_000));
-        assertEquals(500, MechanicalClockFace.millisToNextSecond(1_500));
-        assertEquals(1, MechanicalClockFace.millisToNextSecond(1_999));
-        assertEquals(1000, MechanicalClockFace.millisToNextSecond(2_000));
-        assertEquals(MechanicalClockFace.TICK_MILLIS, 1000);
-    }
-
-    @Test public void widgetSecondHandStepsSixDegreesPerSecond() {
-        // Widgets tick once a second: the second hand steps 6 degrees
-        // a tick (Vivo batches the 100 ms sweep into ~5.5 s steps, so
-        // the widgets stay on the one-second tick).
-        long t1 = time(10, 9, 30, 0);
-        long t2 = time(10, 9, 31, 0);
-        assertEquals(6.0, MechanicalClockFace.secondAngle(t2)
-                - MechanicalClockFace.secondAngle(t1), 0.001);
-    }
 }

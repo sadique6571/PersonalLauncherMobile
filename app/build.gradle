@@ -6,7 +6,7 @@ android {
         applicationId 'com.sadique.launcher.mobile'
         minSdk 28
         targetSdk 36
-        versionCode 9
+        versionCode 10
         versionName '7.0'
         testInstrumentationRunner 'com.sadique.launcher.mobile.PanelRoutingInstrumentation'
     }

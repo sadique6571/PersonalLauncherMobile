@@ -30,6 +30,7 @@ public final class HomeActivity extends Activity {
     private EditText search;
     private TextView clock,date,heading,weather,libraryButton;
     private HomeAnalogClockView analogClock;
+    private PhoneWeatherLocation phoneWeatherLocation;
     private ScrollView libraryView;
     private boolean drawer,resumed,library;
     private Bitmap photo;
@@ -54,7 +55,7 @@ public final class HomeActivity extends Activity {
     }
     @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); setIntent(i); showDrawer(false); }
     @Override protected void onResume() { super.onResume(); resumed=true; main.removeCallbacks(tick); tick.run(); main.removeCallbacks(sweep); sweep.run(); if(!photoUri.equals(prefs.getString("wallpaper",""))) loadPhoto(); WidgetKit.refreshAll(this); }
-    @Override protected void onPause() { resumed=false; main.removeCallbacks(tick); main.removeCallbacks(sweep); super.onPause(); }
+    @Override protected void onPause() { resumed=false; main.removeCallbacks(tick); main.removeCallbacks(sweep); if (phoneWeatherLocation != null) phoneWeatherLocation.cancel(); super.onPause(); }
     @Override protected void onDestroy() { unregisterReceiver(packages); main.removeCallbacksAndMessages(null); catalog.close(); images.shutdownNow(); super.onDestroy(); }
     // Only Android 9–12 use this fallback. Android 13+ uses the registered platform dispatcher above.
     @android.annotation.SuppressLint("GestureBackNavigation")
@@ -93,7 +94,7 @@ public final class HomeActivity extends Activity {
         analogClock=new HomeAnalogClockView(this); LinearLayout.LayoutParams analogParams=new LinearLayout.LayoutParams(Ui.dp(this,168),Ui.dp(this,168)); analogParams.gravity=Gravity.CENTER_HORIZONTAL; analogParams.topMargin=Ui.dp(this,6); widgetCard.addView(analogClock,analogParams);
         clock=Ui.text(this,theme,"",82); clock.setSingleLine(true); clock.setHorizontallyScrolling(false); clock.setAutoSizeTextTypeUniformWithConfiguration(44,82,1,android.util.TypedValue.COMPLEX_UNIT_SP); clock.setTypeface(theme.font,theme.id==2||theme.id==6?Typeface.NORMAL:Typeface.BOLD); clock.setTextColor(Color.WHITE); clock.setShadowLayer(Ui.dp(this,6),0,Ui.dp(this,2),0xdd000000); clock.setPadding(0,Ui.dp(this,4),0,0); widgetCard.addView(clock);
         date=Ui.text(this,theme,"",16); date.setTextColor(Color.WHITE); date.setShadowLayer(5,0,2,Color.BLACK); widgetCard.addView(date);
-        weather=Ui.text(this,theme,"",14); weather.setTextColor(Color.WHITE); weather.setShadowLayer(5,0,2,Color.BLACK); weather.setVisibility(View.GONE); weather.setOnClickListener(v -> open(new Intent(this,WeatherActivity.class))); widgetCard.addView(weather);
+        weather=Ui.text(this,theme,WidgetKit.WEATHER_UNAVAILABLE,14); weather.setTextColor(Color.WHITE); weather.setShadowLayer(5,0,2,Color.BLACK); weather.setOnClickListener(v -> open(new Intent(this,WeatherActivity.class))); widgetCard.addView(weather);
         LinearLayout tools=Ui.row(this); tools.setPadding(0,Ui.dp(this,20),0,Ui.dp(this,8));
         heading=Ui.text(this,theme,"Home",16); heading.setTextColor(Color.WHITE); heading.setShadowLayer(4,0,1,Color.BLACK); tools.addView(heading,new LinearLayout.LayoutParams(0,-2,1));
         tools.addView(Ui.icon(this,theme,"search","Search apps",Color.WHITE,()-> { showDrawer(true); search.requestFocus(); ((android.view.inputmethod.InputMethodManager)getSystemService(INPUT_METHOD_SERVICE)).showSoftInput(search,android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT); })); tools.addView(Ui.icon(this,theme,"apps","All apps",Color.WHITE,()->showDrawer(!drawer))); body.addView(tools);
@@ -151,7 +152,7 @@ public final class HomeActivity extends Activity {
     /** Home widget weather line: cached reading, then one shared fetch (WidgetKit — Google when a key is set, Open-Meteo otherwise; Okara fallback). Coordinates are never stored. */
     private void weather() {
         String cached=prefs.getString("weather_text","");
-        if(!cached.isEmpty() && weather!=null) { weather.setText(cached); weather.setVisibility(View.VISIBLE); }
+        if (weather != null) weather.setText(WidgetKit.weatherText(null, cached));
         if(checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)!=PackageManager.PERMISSION_GRANTED
                 && !prefs.getBoolean("location_asked",false)) {
             prefs.edit().putBoolean("location_asked",true).apply();
@@ -162,7 +163,11 @@ public final class HomeActivity extends Activity {
     }
     @Override public void onRequestPermissionsResult(int request,String[] permissions,int[] grants) {
         super.onRequestPermissionsResult(request,permissions,grants);
-        if(request==45) fetchWeatherLine();
+        if (request == 45) fetchWeatherLine();
+        if (request == 46) {
+            if (grants.length > 0 && grants[0] == PackageManager.PERMISSION_GRANTED) showWeatherCode();
+            else Ui.toast(this, "Allow approximate location to create a TV code");
+        }
     }
     private void fetchWeatherLine() {
         // Same 30-minute gate as the widgets, so the Home line does not
@@ -173,10 +178,31 @@ public final class HomeActivity extends Activity {
         WidgetKit.noteWeatherFetchAttempt(this);
         WidgetKit.fetchWeather(this, (summary, highLow, json) -> main.post(() -> {
             if (isDestroyed() || weather == null) return;
-            String shown = summary != null ? summary : prefs.getString("weather_text", "");
-            if (shown != null && !shown.isEmpty()) { weather.setText(shown); weather.setVisibility(View.VISIBLE); }
+            weather.setText(WidgetKit.weatherText(summary, prefs.getString("weather_text", "")));
         }));
     }
+    private void showWeatherCode() {
+        if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, 46);
+            return;
+        }
+        if (phoneWeatherLocation == null) phoneWeatherLocation = new PhoneWeatherLocation(this);
+        Ui.toast(this, "Getting approximate location…");
+        phoneWeatherLocation.request(location -> {
+            if (isFinishing() || isDestroyed()) return;
+            if (location == null) {
+                Ui.toast(this, "Location unavailable. Turn on phone location and try again.");
+                return;
+            }
+            String code = PhoneWeatherLocation.code(location.getLatitude(), location.getLongitude());
+            new AlertDialog.Builder(this)
+                    .setTitle("Weather code for TV")
+                    .setMessage(code + "\n\nOn TV, open Settings → Weather → Weather city → Use phone code. Enter this code to save your approximate location.")
+                    .setPositiveButton(android.R.string.ok, null)
+                    .show();
+        });
+    }
+
     private void launch(AppCatalog.Entry app) {
         try { ComponentName name=ComponentName.unflattenFromString(app.key); if(name!=null) startActivity(new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER).setComponent(name).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)); }
         catch(RuntimeException gone) { Ui.toast(this,"App unavailable"); scan(); }
@@ -210,6 +236,10 @@ public final class HomeActivity extends Activity {
         TextView edgeInfo=Ui.text(this,theme,"Optional: enable Personal Panel edge swipe in Accessibility. Pull down from the visible handle just below the top-right status bar. Android’s own top-edge shade remains available. Screen text is not read.",13); edgeInfo.setPadding(0,Ui.dp(this,10),0,Ui.dp(this,14)); options.addView(edgeInfo);
         options.addView(Ui.button(this,theme,"Notification access",()->open(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))));
         TextView note=Ui.text(this,theme,"Notification access reads notifications for your panel. Content stays in memory on this phone; no server or analytics. Android still owns its permission screens and system shade.",14); note.setPadding(0,Ui.dp(this,10),0,Ui.dp(this,10)); options.addView(note);
+        options.addView(Ui.button(this, theme, "Weather code for TV", () -> {
+            sheet[0].dismiss();
+            showWeatherCode();
+        }));
         options.addView(Ui.button(this,theme,"Weather location",()->open(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,Uri.parse("package:"+getPackageName())))));
         TextView weatherInfo=Ui.text(this,theme,"Weather uses your current coarse location, once per refresh. Deny it in Android settings and the widget falls back to Okara. Coordinates are never stored.",13); weatherInfo.setPadding(0,Ui.dp(this,10),0,Ui.dp(this,14)); options.addView(weatherInfo);
         options.addView(Ui.text(this,theme,"Google Weather API key",16));
