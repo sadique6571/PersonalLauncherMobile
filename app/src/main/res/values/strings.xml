@@ -14,7 +14,9 @@
     <string name="widget_digital_clock_weather_description">Digital clock with date and live weather, iPhone style, for the home screen.</string>
     <string name="widget_digital_clock_label">Digital Clock</string>
     <string name="widget_digital_clock_description">Digital clock with date, iPhone style, for the home screen.</string>
-    <string name="widget_weather_label">Weather</string>
+    <string name="widget_weather_label">Personal Weather</string>
+    <string name="weather_widget_add">Add Weather widget to Home</string>
+    <string name="weather_widget_picker_hint">Open your Home screen’s widget picker and look for Personal Weather under Personal Launcher Mobile.</string>
     <string name="widget_weather_description">Live weather with today’s high and low, iPhone style, for the home screen.</string>
     <string name="widget_analog_clock_date_label">Analog Clock + Date</string>
     <string name="widget_analog_clock_date_description">Minimal analog clock with date, iPhone style, for the home screen.</string>
