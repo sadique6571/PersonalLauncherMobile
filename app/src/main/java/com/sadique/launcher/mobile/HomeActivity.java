@@ -195,9 +195,11 @@ public final class HomeActivity extends Activity {
                 return;
             }
             String code = PhoneWeatherLocation.code(location.getLatitude(), location.getLongitude());
+            String place = PlaceName.cachedName(this, location.getLatitude(), location.getLongitude());
+            String heading = place == null ? code : code + "\n" + place;
             new AlertDialog.Builder(this)
                     .setTitle("Weather code for TV")
-                    .setMessage(code + "\n\nOn TV, open Settings → Weather → Weather city → Use phone code. Enter this code to save your approximate location.")
+                    .setMessage(heading + "\n\nOn TV, open Settings → Weather → Weather city → Use phone code. Enter this code to save your approximate location.")
                     .setPositiveButton(android.R.string.ok, null)
                     .show();
         });
@@ -236,6 +238,10 @@ public final class HomeActivity extends Activity {
         TextView edgeInfo=Ui.text(this,theme,"Optional: enable Personal Panel edge swipe in Accessibility. Pull down from the visible handle just below the top-right status bar. Android’s own top-edge shade remains available. Screen text is not read.",13); edgeInfo.setPadding(0,Ui.dp(this,10),0,Ui.dp(this,14)); options.addView(edgeInfo);
         options.addView(Ui.button(this,theme,"Notification access",()->open(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))));
         TextView note=Ui.text(this,theme,"Notification access reads notifications for your panel. Content stays in memory on this phone; no server or analytics. Android still owns its permission screens and system shade.",14); note.setPadding(0,Ui.dp(this,10),0,Ui.dp(this,10)); options.addView(note);
+        options.addView(Ui.button(this, theme, getString(R.string.weather_widget_add), () -> {
+            sheet[0].dismiss();
+            WeatherWidget.requestPin(this);
+        }));
         options.addView(Ui.button(this, theme, "Weather code for TV", () -> {
             sheet[0].dismiss();
             showWeatherCode();
