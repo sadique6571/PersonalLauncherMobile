@@ -3,9 +3,12 @@
     android:layout_width="match_parent" android:layout_height="match_parent"
     android:orientation="horizontal" android:gravity="center_vertical"
     android:padding="6dp">
-    <ImageView android:id="@+id/widget_clock_face"
+    <AnalogClock android:id="@+id/widget_clock_face"
         android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1"
-        android:scaleType="fitCenter"
+        android:dial="@drawable/widget_mechanical_dial"
+        android:hand_hour="@drawable/widget_mechanical_hand_hour"
+        android:hand_minute="@drawable/widget_mechanical_hand_minute"
+        android:hand_second="@drawable/widget_mechanical_hand_second"
         android:contentDescription="@string/widget_clock_weather_description"/>
     <LinearLayout android:id="@+id/widget_weather_panel"
         android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1.25"

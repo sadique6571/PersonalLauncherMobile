@@ -2,8 +2,11 @@
     android:id="@+id/widget_root"
     android:layout_width="match_parent" android:layout_height="match_parent"
     android:padding="4dp">
-    <ImageView android:id="@+id/widget_mechanical_face"
+    <AnalogClock android:id="@+id/widget_mechanical_face"
         android:layout_width="match_parent" android:layout_height="match_parent"
-        android:scaleType="fitCenter"
+        android:dial="@drawable/widget_mechanical_dial_tile"
+        android:hand_hour="@drawable/widget_mechanical_hand_hour"
+        android:hand_minute="@drawable/widget_mechanical_hand_minute"
+        android:hand_second="@drawable/widget_mechanical_hand_second"
         android:contentDescription="@string/widget_mechanical_clock_description"/>
 </FrameLayout>
