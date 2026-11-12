@@ -12,6 +12,7 @@
         </activity>
         <activity android:name=".NotificationPanelActivity" android:theme="@style/PanelTheme" android:exported="false" android:taskAffinity="" android:excludeFromRecents="true"/>
         <activity android:name=".WeatherActivity" android:exported="false" android:label="@string/weather_title"/>
+        <activity android:name=".HarmonyV17ClockActivity" android:exported="false" android:label="Harmony Mechanical V17"/>
         <service android:name=".NotificationCollector" android:label="@string/notification_service" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="true">
             <intent-filter><action android:name="android.service.notification.NotificationListenerService"/></intent-filter>
         </service>
