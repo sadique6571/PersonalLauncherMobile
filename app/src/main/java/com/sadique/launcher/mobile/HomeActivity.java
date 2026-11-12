@@ -30,6 +30,7 @@ public final class HomeActivity extends Activity {
     private EditText search;
     private TextView clock,date,heading,weather,libraryButton;
     private HomeAnalogClockView analogClock;
+    private HarmonyV17ClockView v17Clock;
     private PhoneWeatherLocation phoneWeatherLocation;
     private ScrollView libraryView;
     private boolean drawer,resumed,library;
@@ -54,9 +55,9 @@ public final class HomeActivity extends Activity {
         build(); scan();
     }
     @Override protected void onNewIntent(Intent i) { super.onNewIntent(i); setIntent(i); showDrawer(false); }
-    @Override protected void onResume() { super.onResume(); resumed=true; main.removeCallbacks(tick); tick.run(); main.removeCallbacks(sweep); sweep.run(); if(!photoUri.equals(prefs.getString("wallpaper",""))) loadPhoto(); WidgetKit.refreshAll(this); }
-    @Override protected void onPause() { resumed=false; main.removeCallbacks(tick); main.removeCallbacks(sweep); if (phoneWeatherLocation != null) phoneWeatherLocation.cancel(); super.onPause(); }
-    @Override protected void onDestroy() { unregisterReceiver(packages); main.removeCallbacksAndMessages(null); catalog.close(); images.shutdownNow(); super.onDestroy(); }
+    @Override protected void onResume() { super.onResume(); resumed=true; main.removeCallbacks(tick); tick.run(); main.removeCallbacks(sweep); sweep.run(); if(v17Clock!=null)v17Clock.active(true); if(!photoUri.equals(prefs.getString("wallpaper",""))) loadPhoto(); WidgetKit.refreshAll(this); }
+    @Override protected void onPause() { resumed=false; main.removeCallbacks(tick); main.removeCallbacks(sweep); if(v17Clock!=null)v17Clock.active(false); if (phoneWeatherLocation != null) phoneWeatherLocation.cancel(); super.onPause(); }
+    @Override protected void onDestroy() { if(v17Clock!=null){v17Clock.close();v17Clock=null;} unregisterReceiver(packages); main.removeCallbacksAndMessages(null); catalog.close(); images.shutdownNow(); super.onDestroy(); }
     // Only Android 9–12 use this fallback. Android 13+ uses the registered platform dispatcher above.
     @android.annotation.SuppressLint("GestureBackNavigation")
     @SuppressWarnings("deprecation") @Override public void onBackPressed() { showDrawer(false); }
@@ -81,6 +82,7 @@ public final class HomeActivity extends Activity {
         if(library && libraryView!=null) { libraryView.removeAllViews(); libraryView.addView(AppLibrary.build(this,theme,catalog,filtered,app->launch(app),app->appMenu(app,null))); }
     }
     private void build() {
+        if(v17Clock!=null){v17Clock.close();v17Clock=null;}
         theme=new MobileTheme(prefs); FrameLayout root=new GestureFrame(this,new GestureFrame.Route() {
             public boolean accept(boolean down,float y) { android.graphics.Rect area=new android.graphics.Rect(); boolean inGrid=grid!=null&&grid.getGlobalVisibleRect(area)&&y>=area.top&&y<area.bottom; return down?(!inGrid||!grid.canScrollVertically(-1)):(!drawer&&(!inGrid||!grid.canScrollVertically(1))); }
             public void swipe(boolean down) { if(down) { if(drawer) showDrawer(false); else panel(); } else showDrawer(true); }
@@ -91,7 +93,23 @@ public final class HomeActivity extends Activity {
         android.widget.ImageButton panelButton=Ui.icon(this,theme,"panel","Open control center",Color.WHITE,this::panel); panelButton.setId(R.id.open_panel); bar.addView(panelButton);
         bar.addView(Ui.icon(this,theme,"settings","Launcher settings",Color.WHITE,this::settings)); body.addView(bar);
         widgetCard=Ui.column(this); widgetCard.setPadding(Ui.dp(this,16),Ui.dp(this,10),Ui.dp(this,16),Ui.dp(this,12)); widgetCard.setBackground(theme.panel(getResources().getDisplayMetrics().density,false)); body.addView(widgetCard,new LinearLayout.LayoutParams(-1,-2));
-        analogClock=new HomeAnalogClockView(this); LinearLayout.LayoutParams analogParams=new LinearLayout.LayoutParams(Ui.dp(this,168),Ui.dp(this,168)); analogParams.gravity=Gravity.CENTER_HORIZONTAL; analogParams.topMargin=Ui.dp(this,6); widgetCard.addView(analogClock,analogParams);
+        // The original compact analog face remains the default. V17 runs only if selected.
+        boolean useV17=prefs.getBoolean("harmony_v17_home",false);
+        analogClock=useV17?null:new HomeAnalogClockView(this);
+        LinearLayout.LayoutParams analogParams=new LinearLayout.LayoutParams(Ui.dp(this,useV17?220:168),Ui.dp(this,useV17?220:168));
+        analogParams.gravity=Gravity.CENTER_HORIZONTAL; analogParams.topMargin=Ui.dp(this,6);
+        if(useV17){
+            try {
+                v17Clock=new HarmonyV17ClockView(this);
+                widgetCard.addView(v17Clock,analogParams);
+                v17Clock.active(resumed);
+            }catch(RuntimeException webViewMissing){
+                android.util.Log.w("MobileClock","V17 WebView unavailable, using native analog",webViewMissing);
+                v17Clock=null;
+                analogClock=new HomeAnalogClockView(this);
+                widgetCard.addView(analogClock,analogParams);
+            }
+        }else widgetCard.addView(analogClock,analogParams);
         clock=Ui.text(this,theme,"",82); clock.setSingleLine(true); clock.setHorizontallyScrolling(false); clock.setAutoSizeTextTypeUniformWithConfiguration(44,82,1,android.util.TypedValue.COMPLEX_UNIT_SP); clock.setTypeface(theme.font,theme.id==2||theme.id==6?Typeface.NORMAL:Typeface.BOLD); clock.setTextColor(Color.WHITE); clock.setShadowLayer(Ui.dp(this,6),0,Ui.dp(this,2),0xdd000000); clock.setPadding(0,Ui.dp(this,4),0,0); widgetCard.addView(clock);
         date=Ui.text(this,theme,"",16); date.setTextColor(Color.WHITE); date.setShadowLayer(5,0,2,Color.BLACK); widgetCard.addView(date);
         weather=Ui.text(this,theme,WidgetKit.WEATHER_UNAVAILABLE,14); weather.setTextColor(Color.WHITE); weather.setShadowLayer(5,0,2,Color.BLACK); weather.setOnClickListener(v -> open(new Intent(this,WeatherActivity.class))); widgetCard.addView(weather);
@@ -129,7 +147,8 @@ public final class HomeActivity extends Activity {
         };
         clock.setOnClickListener(v->showDrawer(true)); date.setOnClickListener(v->panel());
         clock.setOnTouchListener(swipe); date.setOnTouchListener(swipe);
-        analogClock.setOnClickListener(v->showDrawer(true)); analogClock.setOnTouchListener(swipe);
+        if(analogClock!=null){analogClock.setOnClickListener(v->open(new Intent(this,HarmonyV17ClockActivity.class)));analogClock.setOnTouchListener(swipe);}
+        if(v17Clock!=null)v17Clock.setOnClickListener(v->open(new Intent(this,HarmonyV17ClockActivity.class)));
         library=false; updateTime(); showDrawer(drawer); refreshApps(); loadPhoto(); weather();
     }
     private void updateTime() { if(clock!=null) { String value=android.text.format.DateFormat.getTimeFormat(this).format(new Date()); android.text.SpannableString styled=new android.text.SpannableString(value);
@@ -231,6 +250,11 @@ public final class HomeActivity extends Activity {
     private void settings() {
         LinearLayout options=Ui.column(this); final Dialog[] sheet={null};
         options.addView(Ui.button(this,theme,"Set as default Home",this::defaultHome));
+        options.addView(Ui.button(this,theme,
+                prefs.getBoolean("harmony_v17_home",false)?"Home clock: V17 Mechanical ✓":"Home clock: Classic analog ✓",
+                ()->{prefs.edit().putBoolean("harmony_v17_home",!prefs.getBoolean("harmony_v17_home",false)).apply();sheet[0].dismiss();build();}));
+        options.addView(Ui.button(this,theme,"Open Harmony Mechanical V17 (full screen)",
+                ()->{sheet[0].dismiss();open(new Intent(this,HarmonyV17ClockActivity.class));}));
         options.addView(Ui.button(this,theme,EdgeSwipeService.active()?"Disable swipe over apps":"Enable swipe over apps",()-> {
             if(EdgeSwipeService.active()) { prefs.edit().putBoolean("edge_enabled",false).apply(); EdgeSwipeService.stop(); sheet[0].dismiss(); }
             else { prefs.edit().putBoolean("edge_enabled",true).apply(); sheet[0].dismiss(); open(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)); }
